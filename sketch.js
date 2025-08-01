@@ -364,34 +364,25 @@ function generateCell(cx, cz) {
       // Random size 0.8-1.4
       const size = 0.8 + seededRandom(cx, cz, FLOWER_SALT + 1000 + c*100 + f) * 0.6;
 
-      // Bold colour: random hue 0-360, sat 75-100, bright 90-100
+      // Bold colour: random hue 0-360, sat 90-100, bright 95-100
       const h = Math.floor(seededRandom(cx, cz, FLOWER_SALT + 2000 + c*100 + f) * 360);
-      const s = 75 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 26);
-      const b = 90 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 11);
+      const s = 90 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 11);
+      const b = 95 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 6);
 
-      // Decide variant: 60% torus, 40% daisy
-      const variantR = seededRandom(cx, cz, FLOWER_SALT + 6000 + c*100 + f);
-      let type, petals;
-      if (variantR < 0.6) {
-        type = "torus";
-      } else {
-        type = "daisy";
-        petals = 6 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 6500 + c*100 + f) * 4); // 6-9
-      }
+      // Only daisy variant
+      const type = "daisy";
+      const petals = 6 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 6500 + c*100 + f) * 4); // 6-9
 
-      const flowerObj = {
+      flowers.push({
         x: fx,
         z: fz,
         size,
         h,
         s,
         b,
-        type
-      };
-      if (type === "daisy") {
-        flowerObj.petals = petals;
-      }
-      flowers.push(flowerObj);
+        type,
+        petals
+      });
     }
   }
 
