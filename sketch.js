@@ -265,19 +265,21 @@ function drawGroundCell(cx, cz) {
 // ====== OBJECT DRAW HELPERS (ALL OBJECTS SIT ON GROUND) ======
 
 // --- Helper: Draw vertical bark grooves on cylinders ---
+// Disabled for performance
 function drawBarkGrooves(r, h, col, variant) {
-  const grooves = 10;
-  let barkCol;
-  if (variant === 'birch') barkCol = color(0, 0, 15); // dark gray
-  else barkCol = color(hue(col), saturation(col), max(brightness(col)-35, 25));
-  for (let i = 0; i < grooves; i++) {
-    push();
-    rotateY(i * TWO_PI / grooves);
-    translate(r * 0.9, 0, 0); // on surface
-    ambientMaterial(barkCol);
-    cylinder(r * 0.05, h*1.02, 6, 1, false);
-    pop();
-  }
+  return;
+  // const grooves = 10;
+  // let barkCol;
+  // if (variant === 'birch') barkCol = color(0, 0, 15); // dark gray
+  // else barkCol = color(hue(col), saturation(col), max(brightness(col)-35, 25));
+  // for (let i = 0; i < grooves; i++) {
+  //   push();
+  //   rotateY(i * TWO_PI / grooves);
+  //   translate(r * 0.9, 0, 0); // on surface
+  //   ambientMaterial(barkCol);
+  //   cylinder(r * 0.05, h*1.02, 6, 1, false);
+  //   pop();
+  // }
 }
 
 // --- TREE: Pacific-NW tall, thick, colourful, arty foliage, all variants
@@ -298,8 +300,7 @@ function drawTree(x, z, t) {
     translate(0, trunkH/2, 0);
     ambientMaterial(trunkColor);
     cylinder(trunkR, trunkH, 16, 1, false);
-    // Bark grooves
-    drawBarkGrooves(trunkR, trunkH, trunkColor, t.type);
+    // drawBarkGrooves(trunkR, trunkH, trunkColor, t.type); // disabled for perf
     pop();
     // Foliage: 4-5 stacked cones, large radii
     let numCones = 4 + Math.floor(fract(t.colSeed + 0.39) * 2); // 4-5
@@ -330,8 +331,7 @@ function drawTree(x, z, t) {
     translate(0, trunkH/2, 0);
     ambientMaterial(trunkColor);
     cylinder(trunkR, trunkH, 16, 1, false);
-    // Bark grooves
-    drawBarkGrooves(trunkR, trunkH, trunkColor, t.type);
+    // drawBarkGrooves(trunkR, trunkH, trunkColor, t.type); // disabled for perf
     pop();
     // Foliage: 2 massive pastel spheres
     let mainHue = fract(t.colSeed + 0.41) * 60 + 90;
@@ -362,18 +362,7 @@ function drawTree(x, z, t) {
     translate(0, trunkH/2, 0);
     ambientMaterial(0, 0, 98);
     cylinder(trunkR, trunkH, 14, 1, false);
-    // Bark grooves (vertical, replaces horizontal stripes)
-    drawBarkGrooves(trunkR, trunkH, color(0,0,98), t.type);
-    // // Black stripes (remove for grooves)
-    // for (let i=0; i<7; i++) {
-    //   let y = -trunkH/2 + trunkH * (i+0.5)/8;
-    //   push();
-    //   translate(0, y, trunkR+0.2);
-    //   rotateX(HALF_PI);
-    //   fill(0, 0, 18);
-    //   ellipse(0,0, trunkR*1.9, 1.5);
-    //   pop();
-    // }
+    // drawBarkGrooves(trunkR, trunkH, color(0,0,98), t.type); // disabled for perf
     pop();
     // Foliage: 2 big pastel green spheres + torus
     let mainHue = fract(t.colSeed + 0.19) * 30 + 85;
