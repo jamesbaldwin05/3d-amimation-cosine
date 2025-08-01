@@ -516,9 +516,9 @@ function drawAnimal(x, z, a) {
   let pastel = color(mainHue, 24, 81);
   if (a.type === "rabbit") {
     scale(a.size);
-    // Vibrant green for all rabbit parts
-    const rabbitCol = color(120, 80, 90); // bright green, HSB
-    const rabbitColLight = color(120, 60, 100); // lighter green for tail/stamen
+    // Vivid green for all rabbit parts
+    const rabbitCol = color(120, 90, 90);    // bright green (HSB)
+    const rabbitLight = color(120, 60, 100); // lighter green for tail
 
     // Body
     push();
@@ -545,14 +545,15 @@ function drawAnimal(x, z, a) {
     // Tail
     push();
     translate(0, 8.6, -6.2);
-    ambientMaterial(rabbitColLight);
+    ambientMaterial(rabbitLight);
     sphere(2.3, 7, 5);
     pop();
   } else if (a.type === "deer") {
     scale(a.size);
-    // Bright red deer!
-    const deerCol = color(0, 80, 90);      // bright red (HSB)
-    const deerColLight = color(0, 60, 95); // lighter red for tail/antlers
+    // Vivid red for all deer parts
+    const deerCol = color(0, 90, 90);        // bright red (HSB)
+    const deerLight = color(0, 60, 100);     // lighter red for tail/antlers
+    const antlerCol = color(0, 60, 100, 0.35); // semi-transparent for antlers
 
     // Y-offsets for upright deer
     const BODY_Y = 6.2;
@@ -604,7 +605,7 @@ function drawAnimal(x, z, a) {
     // Tail
     push();
     translate(0, TAIL_Y, -8.2);
-    ambientMaterial(deerColLight);
+    ambientMaterial(deerLight);
     sphere(1.8, 6, 5);
     pop();
 
@@ -614,7 +615,7 @@ function drawAnimal(x, z, a) {
       translate(2.9*side, ANTLER_Y, 5.1);
       rotateZ(side * 0.35);
       rotateX(-PI/3.5);
-      ambientMaterial(deerColLight, 0.35);
+      ambientMaterial(antlerCol);
       torus(2.7, 0.36, 10, 4);
       pop();
     }
