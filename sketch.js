@@ -299,12 +299,12 @@ function generateCell(cx, cz) {
     W: !!paths.W,
   };
 
-  // Deterministic: use cx,cz as part of salt
-  const flowerSeedSalt = "flowers";
+  // Deterministic: use numeric salt for all flower RNG
+  const FLOWER_SALT = 8000;
 
   // 0-2 clusters per cell on average (tweakable)
   const clusterCount = Math.floor(
-    seededRandom(cx, cz, flowerSeedSalt + "_count") * 3
+    seededRandom(cx, cz, FLOWER_SALT + 1) * 3
   ); // 0,1,2 clusters
 
   for (let c = 0; c < clusterCount; ++c) {
@@ -313,8 +313,8 @@ function generateCell(cx, cz) {
     let cx0 = 0, cz0 = 0;
     for (let attempt = 0; attempt < 8; ++attempt) {
       // Choose centre in [-CELL_SIZE/2, CELL_SIZE/2)
-      cx0 = (seededRandom(cx, cz, flowerSeedSalt + "_clusterc_" + c + "_" + attempt + "_x") - 0.5) * CELL_SIZE;
-      cz0 = (seededRandom(cx, cz, flowerSeedSalt + "_clusterc_" + c + "_" + attempt + "_z") - 0.5) * CELL_SIZE;
+      cx0 = (seededRandom(cx, cz, FLOWER_SALT + 10 + c*100 + attempt*2) - 0.5) * CELL_SIZE;
+      cz0 = (seededRandom(cx, cz, FLOWER_SALT + 11 + c*100 + attempt*2) - 0.5) * CELL_SIZE;
 
       // Path clearance check
       let tooClosePath = false;
@@ -331,11 +331,11 @@ function generateCell(cx, cz) {
 
     // Cluster size: 70% chance 5-15, else 1-4
     let clusterSize;
-    const clusterSizeRand = seededRandom(cx, cz, flowerSeedSalt + "_clustersize_" + c);
+    const clusterSizeRand = seededRandom(cx, cz, FLOWER_SALT + 100 + c*10);
     if (clusterSizeRand < 0.7) {
-      clusterSize = 5 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_clustersize2_" + c) * 11); // 5-15
+      clusterSize = 5 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 110 + c*10) * 11); // 5-15
     } else {
-      clusterSize = 1 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_clustersize3_" + c) * 4); // 1-4
+      clusterSize = 1 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 120 + c*10) * 4); // 1-4
     }
 
     // For each flower in cluster
@@ -344,8 +344,8 @@ function generateCell(cx, cz) {
       // up to 3 tries for each flower to avoid trees/bushes
       for (let tr = 0; tr < 3; ++tr) {
         // Offset radius 0-25 px
-        const angle = seededRandom(cx, cz, flowerSeedSalt + "_angle_" + c + "_" + f + "_" + tr) * Math.PI * 2;
-        const dist = seededRandom(cx, cz, flowerSeedSalt + "_dist_" + c + "_" + f + "_" + tr) * 25;
+        const angle = seededRandom(cx, cz, FLOWER_SALT + 200 + c*100 + f*10 + tr) * Math.PI * 2;
+        const dist  = seededRandom(cx, cz, FLOWER_SALT + 500 + c*100 + f*10 + tr) * 25;
         fx = cx0 + Math.cos(angle) * dist;
         fz = cz0 + Math.sin(angle) * dist;
 
@@ -362,15 +362,15 @@ function generateCell(cx, cz) {
       if (!placed) continue;
 
       // Random size 0.8-1.4
-      const size = 0.8 + seededRandom(cx, cz, flowerSeedSalt + "_size_" + c + "_" + f) * 0.6;
+      const size = 0.8 + seededRandom(cx, cz, FLOWER_SALT + 1000 + c*100 + f) * 0.6;
 
       // Bold colour: random hue 0-360, sat 60-95, bright 85-100
-      const h = Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_hue_" + c + "_" + f) * 360);
-      const s = 60 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_sat_" + c + "_" + f) * 36);
-      const b = 85 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_bri_" + c + "_" + f) * 16);
+      const h = Math.floor(seededRandom(cx, cz, FLOWER_SALT + 2000 + c*100 + f) * 360);
+      const s = 60 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 36);
+      const b = 85 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 16);
 
       // type: "sphere" or "torus"
-      const type = (seededRandom(cx, cz, flowerSeedSalt + "_type_" + c + "_" + f) < 0.5) ? "sphere" : "torus";
+      const type = (seededRandom(cx, cz, FLOWER_SALT + 5000 + c*100 + f) < 0.5) ? "sphere" : "torus";
 
       flowers.push({
         x: fx,
