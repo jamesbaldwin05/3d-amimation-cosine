@@ -12,6 +12,7 @@ const TREE_DENSITY = 8;         // Trees per cell (approx)
 const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
 const FLOWER_CLEAR = 90;        // px distance from path centre used to keep flowers off the path.
 const FLOWER_MIN_DIST = 12;     // px minimum allowed distance between flower centers
+const PATH_CLEAR_TREE = 100;    // px clearance from path centre for trees/bushes
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -227,6 +228,40 @@ function generateCell(cx, cz) {
   const trees = [];
   const occupied = [];
 
+  // --- Symmetric, endless curvy dirt paths (N/S/E/W) ---
+  // Paths are generated per-edge so that they always connect across cells (unless RNG ends the line).
+  function edgeData(dir) {
+    // Canonical edge coordinates: N and W move origin to neighbor cell
+    let ax = cx, az = cz, saltBase;
+    if (dir === 'N')      { az -= 1; saltBase = 20000; }
+    else if (dir === 'S') {         saltBase = 20000; }
+    else if (dir === 'E') {         saltBase = 21000; }
+    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
+    const PATH_PROB = 0.04;
+    const rnd = seededRandom(ax, az, saltBase);
+    if (rnd < PATH_PROB) {
+      return {
+        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
+        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
+      };
+    }
+    return null;
+  }
+  const paths = {
+    N: edgeData('N'),
+    S: edgeData('S'),
+    E: edgeData('E'),
+    W: edgeData('W'),
+  };
+
+  // Path flags for easy access (true if path exists)
+  const pathFlags = {
+    N: !!paths.N,
+    S: !!paths.S,
+    E: !!paths.E,
+    W: !!paths.W,
+  };
+
   // Helper to place trees with given count, size range, variants, and min radius
   function placeTrees(count, sizeRange, variants, minRadiusFactor, saltBase=0) {
     for (let i = 0; i < count; i++) {
@@ -240,6 +275,13 @@ function generateCell(cx, cz) {
         let variant = variants[variantIndex];
         let size = sizeRange[0] + seededRandom(cx, cz, 4000 + saltBase*1000 + i*100 + t) * (sizeRange[1] - sizeRange[0]);
         let radius = minRadiusFactor + size * 10;
+
+        // Path clearance check for trees/bushes
+        let tooClosePath = false;
+        if ((pathFlags.N || pathFlags.S) && Math.abs(x) < PATH_CLEAR_TREE) tooClosePath = true;
+        if ((pathFlags.E || pathFlags.W) && Math.abs(z) < PATH_CLEAR_TREE) tooClosePath = true;
+        if (tooClosePath) continue; // try another spot
+
         if (canPlaceRadius(x, z, radius, occupied)) {
           let tObj = {
             type: variant,
