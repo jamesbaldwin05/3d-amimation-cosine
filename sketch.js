@@ -304,39 +304,45 @@ function drawGroundCell(cx, cz) {
   fill(120, 38, 55);
   plane(CELL_SIZE, CELL_SIZE);
 
-  // Overlay sparse curvy dirt paths, flush with ground (not raised)
+  // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
   if (cell && cell.paths) {
     push();
-    // (No translation: dirt tracks sit exactly on grass plane)
-    stroke(30, 60, 45);
-    strokeWeight(70);
-    strokeCap(SQUARE);
-    noFill();
+    const PATH_W = 140;   // full width (px)
+    noStroke();
+    fill(30, 60, 45);
 
-    function drawCurvy(dir, data) {
+    function ribbon(dir, data) {
       if (!data) return;
-      const segments = 16;
-      const len = CELL_SIZE/2 + 80;
-      push();
-      beginShape();
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const a = data.amp * Math.sin(t * Math.PI) * Math.sin(data.phase);
-        let x = 0, y = 0;
-        if (dir === 'N') { x = a; y = -len * t; }
-        if (dir === 'S') { x = a; y =  len * t; }
-        if (dir === 'E') { x =  len * t; y = a; }
-        if (dir === 'W') { x = -len * t; y = a; }
-        vertex(x, y);
+      const segs = 18;
+      const len  = CELL_SIZE/2 + 80;
+      const half = PATH_W/2;
+      // Helper to get centre point for parameter t (0..1)
+      const centre = t => {
+        const a = data.amp * Math.sin(t*Math.PI) * Math.sin(data.phase);
+        if      (dir==='N') return createVector(  a,           -len*t);
+        else if (dir==='S') return createVector(  a,            len*t);
+        else if (dir==='E') return createVector(  len*t,        a     );
+        else               return createVector( -len*t,        a     ); // W
+      };
+      beginShape(TRIANGLE_STRIP);
+      for (let i=0;i<=segs;i++) {
+        const t  = i/segs;
+        const c  = centre(t);
+        // tangent ≈ centre(t+dt)-centre(t)
+        const dt = 1/segs;
+        const n  = centre(Math.min(t+dt,1)).sub(c);
+        // perpendicular (normalised)
+        const p  = createVector(-n.y, n.x).normalize().mult(half);
+        vertex(c.x + p.x, c.y + p.y, 0);
+        vertex(c.x - p.x, c.y - p.y, 0);
       }
       endShape();
-      pop();
     }
 
-    drawCurvy('N', cell.paths.N);
-    drawCurvy('S', cell.paths.S);
-    drawCurvy('E', cell.paths.E);
-    drawCurvy('W', cell.paths.W);
+    ribbon('N', cell.paths.N);
+    ribbon('S', cell.paths.S);
+    ribbon('E', cell.paths.E);
+    ribbon('W', cell.paths.W);
 
     pop();
   }
