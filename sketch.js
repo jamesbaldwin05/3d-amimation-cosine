@@ -550,10 +550,9 @@ function drawAnimal(x, z, a) {
     pop();
   } else if (a.type === "deer") {
     scale(a.size);
-    // Vivid red for all deer parts
-    const deerCol = color(0, 90, 90);        // bright red (HSB)
-    const deerLight = color(0, 60, 100);     // lighter red for tail/antlers
-    const antlerCol = color(0, 60, 100, 0.35); // semi-transparent for antlers
+    // Solid black for all deer parts
+    const deerCol = color(0, 0, 0);      // pure black
+    const antlerCol = deerCol;           // also black
 
     // Y-offsets for upright deer
     const BODY_Y = 6.2;
@@ -591,7 +590,7 @@ function drawAnimal(x, z, a) {
     }
     pop();
 
-    // Legs (simple, 4 red cylinders)
+    // Legs (simple, 4 black cylinders)
     for (let side of [-1, 1]) {
       for (let f of [1, -1]) {
         push();
@@ -605,7 +604,7 @@ function drawAnimal(x, z, a) {
     // Tail
     push();
     translate(0, TAIL_Y, -8.2);
-    ambientMaterial(deerLight);
+    ambientMaterial(deerCol);
     sphere(1.8, 6, 5);
     pop();
 
