@@ -253,14 +253,38 @@ function generateCell(cx, cz) {
   placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
   placeTrees(4, [1.5, 2.4], ['bush'], 55, 4);
 
-  // Old big tree loop commented for reference
-  // let treeTries = 0;
-  // for (let i = 0; i < TREE_DENSITY; i++) { ... }
-
   // No flowers or animals in pure forest mode
   const flowers = [];
   const animals = [];
-  return {trees, flowers, animals};
+
+  // --- Symmetric, endless curvy dirt paths (N/S/E/W) ---
+  // Paths are generated per-edge so that they always connect across cells (unless RNG ends the line).
+  // Each edge: with prob ≈ 0.04, store {amp,phase}; else null.
+  function edgeData(dir) {
+    // Canonical edge coordinates: N and W move origin to neighbor cell
+    let ax = cx, az = cz, saltBase;
+    if (dir === 'N')      { az -= 1; saltBase = 20000; }
+    else if (dir === 'S') {         saltBase = 20000; }
+    else if (dir === 'E') {         saltBase = 21000; }
+    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
+    const PATH_PROB = 0.04;
+    const rnd = seededRandom(ax, az, saltBase);
+    if (rnd < PATH_PROB) {
+      return {
+        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
+        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
+      };
+    }
+    return null;
+  }
+  const paths = {
+    N: edgeData('N'),
+    S: edgeData('S'),
+    E: edgeData('E'),
+    W: edgeData('W'),
+  };
+
+  return {trees, flowers, animals, paths};
 }
 
 // Squared distance helper
@@ -281,11 +305,62 @@ function canPlaceRadius(x, z, r, occupied) {
 
 // --- Draw a ground tile for cell (cx, cz) ---
 function drawGroundCell(cx, cz) {
+  const cell = cellMap.get(cellKey(cx, cz));
   push();
   translate(cx * CELL_SIZE, 0, cz * CELL_SIZE);
   rotateX(-HALF_PI);
   fill(120, 38, 55);
   plane(CELL_SIZE, CELL_SIZE);
+
+  // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
+  if (cell && cell.paths) {
+    push();
+    // Draw at ground level with polygon offset to avoid z-fighting but keep correct depth for trees etc.
+    const gl = drawingContext;
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(-1, -1);
+
+    const PATH_W = 186;   // full width (px)
+    const PATH_LEN = CELL_SIZE * 4;  // very long: ~1600px reach for endless feel
+    noStroke();
+    fill(30, 65, 35);
+
+    function ribbon(dir, data) {
+      if (!data) return;
+      const segs = 18;
+      const len  = PATH_LEN;
+      const half = PATH_W/2;
+      // Helper to get centre point for parameter t (0..1)
+      const centre = t => {
+        const a = data.amp * Math.sin(t*Math.PI) * Math.sin(data.phase);
+        if      (dir==='N') return createVector(  a,           -len*t);
+        else if (dir==='S') return createVector(  a,            len*t);
+        else if (dir==='E') return createVector(  len*t,        a     );
+        else               return createVector( -len*t,        a     ); // W
+      };
+      beginShape(TRIANGLE_STRIP);
+      for (let i=0;i<=segs;i++) {
+        const t  = i/segs;
+        const c  = centre(t);
+        // tangent ≈ centre(t+dt)-centre(t)
+        const dt = 1/segs;
+        const n  = centre(Math.min(t+dt,1)).sub(c);
+        // perpendicular (normalised)
+        const p  = createVector(-n.y, n.x).normalize().mult(half);
+        vertex(c.x + p.x, c.y + p.y, 0);
+        vertex(c.x - p.x, c.y - p.y, 0);
+      }
+      endShape();
+    }
+
+    ribbon('N', cell.paths.N);
+    ribbon('S', cell.paths.S);
+    ribbon('E', cell.paths.E);
+    ribbon('W', cell.paths.W);
+
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+    pop();
+  }
   pop();
 }
 
