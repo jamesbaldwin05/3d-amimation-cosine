@@ -313,7 +313,7 @@ function drawGroundCell(cx, cz) {
     gl.polygonOffset(-1, -1);
 
     const PATH_W = 186;   // full width (px), thinner than before
-    const PATH_LEN = CELL_SIZE/2 + 200;  // longer reach
+    const PATH_LEN = CELL_SIZE * 2;  // much longer: 800px reach
     noStroke();
     fill(30, 65, 35);
 
