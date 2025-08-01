@@ -8,8 +8,8 @@ const RENDER_RADIUS = 3;        // How many cells out to generate/draw
 const DRAW_DIST = CELL_SIZE * RENDER_RADIUS * 1.1; // Max draw distance
 const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
 const TREE_DENSITY = 8;         // Trees per cell (approx)
-const FLOWER_DENSITY = 7;       // Flowers per cell
-const ANIMAL_DENSITY = 1;       // Animals per cell
+const FLOWER_DENSITY = 7;       // (now unused, per-cluster)
+const ANIMAL_DENSITY = 3;       // Animals per cell (denser)
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -242,7 +242,7 @@ function generateCell(cx, cz) {
           type: type,
           x: x,
           z: z,
-          size: 1.8 + seededRandom(cx, cz, 4000 + i + t*10000) * 1.2, // 1.8 to 3.0
+          size: 2.0 + seededRandom(cx, cz, 4000 + i + t*10000) * 1.5, // 2.0 to 3.5
           colSeed: seededRandom(cx, cz, 7000 + i + t*10000)
         };
         trees.push(tObj);
@@ -280,29 +280,48 @@ function generateCell(cx, cz) {
       }
     }
   }
-  // --- Flowers (min dist 25 from anything) ---
-  for (let i = 0; i < FLOWER_DENSITY; i++) {
-    let placed = false;
-    for (let t = 0; t < 15; t++) {
-      let rx = seededRandom(cx, cz, 801 + i + t*10000) * CELL_SIZE;
-      let rz = seededRandom(cx, cz, 902 + i + t*10000) * CELL_SIZE;
+  // --- Flower patches (clusters) ---
+  let CLUSTERS = 2 + Math.floor(seededRandom(cx, cz, 1337) * 3); // 2-4 clusters
+  for (let c = 0; c < CLUSTERS; c++) {
+    // Random cluster center, must avoid other clusters/objects by 40*40
+    let clusterPlaced = false;
+    let clusterCenterX, clusterCenterZ;
+    for (let tryC = 0; tryC < 15; tryC++) {
+      let rx = seededRandom(cx, cz, 2101 + c + tryC*10000) * CELL_SIZE;
+      let rz = seededRandom(cx, cz, 2201 + c + tryC*10000) * CELL_SIZE;
       let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
-      if (canPlace(x, z, occupied, 25*25)) {
-        let ftype = seededRandom(cx, cz, 2000 + i + t*10000) < 0.5 ? "sphere" : "torus";
-        let colh = fract(seededRandom(cx, cz, 888 + i + t*10000) + 0.1 * i) * 360;
-        let cols = 60 + 35 * seededRandom(cx, cz, 889 + i + t*10000);
-        let colb = 80 + 20 * seededRandom(cx, cz, 890 + i + t*10000);
+      if (canPlace(x, z, occupied, 40*40)) {
+        clusterCenterX = x;
+        clusterCenterZ = z;
+        occupied.push({x, z});
+        clusterPlaced = true;
+        break;
+      }
+    }
+    if (!clusterPlaced) continue;
+    // Place flowers in cluster
+    let clusterSize = 6 + Math.floor(seededRandom(cx, cz, 2300 + c) * 7); // 6-12 per cluster
+    let baseHue = fract(seededRandom(cx, cz, 888 + c) + 0.11 * c) * 360;
+    for (let f = 0; f < clusterSize; f++) {
+      let ang = seededRandom(cx, cz, 2400 + c*100 + f) * TWO_PI;
+      let rad = 6 + seededRandom(cx, cz, 2500 + c*100 + f) * 16; // within radius 22
+      let x = clusterCenterX + cos(ang) * rad;
+      let z = clusterCenterZ + sin(ang) * rad;
+      // Only check min 12*12 from other occupied objects (but not within-cluster)
+      if (canPlace(x, z, occupied, 20*20)) {
+        let ftype = seededRandom(cx, cz, 2600 + c*100 + f) < 0.5 ? "sphere" : "torus";
+        let colh = (baseHue + seededRandom(cx, cz, 888 + c*100 + f) * 32) % 360;
+        let cols = 65 + 30 * seededRandom(cx, cz, 889 + c*100 + f);
+        let colb = 80 + 18 * seededRandom(cx, cz, 890 + c*100 + f);
         let fObj = {
           type: ftype,
           x: x,
           z: z,
-          size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + i + t*10000),
+          size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + c*100 + f),
           h: colh, s: cols, b: colb
         };
         flowers.push(fObj);
         occupied.push({x, z});
-        placed = true;
-        break;
       }
     }
   }
@@ -327,7 +346,7 @@ function drawGroundCell(cx, cz) {
 
 // ====== OBJECT DRAW HELPERS (ALL OBJECTS SIT ON GROUND) ======
 
-// --- TREE: smooth, colourful, arty foliage, all variants
+// --- TREE: Pacific-NW tall, thick, colourful, arty foliage, all variants
 function drawTree(x, z, t) {
   push();
   translate(x, 0, z);
@@ -338,21 +357,22 @@ function drawTree(x, z, t) {
   let trunkColor = color(baseHue, 28, 68);
 
   if (t.type === "pine") {
-    trunkH = 45 * t.size;
-    trunkR = 4.1 * t.size;
+    trunkH = 120 * t.size;
+    trunkR = 6 * t.size;
     // Place trunk so bottom is at y=0:
     push();
     translate(0, trunkH/2, 0);
     ambientMaterial(trunkColor);
-    cylinder(trunkR, trunkH, 12, 1, false);
+    cylinder(trunkR, trunkH, 16, 1, false);
     pop();
-    // Foliage: 3-4 stacked cones, vibrant green/blue
-    let baseY = trunkH + 12*t.size;
+    // Foliage: 4-5 stacked cones, large radii
+    let numCones = 4 + Math.floor(fract(t.colSeed + 0.39) * 2); // 4-5
+    let baseY = trunkH + 20 * t.size;
     let mainHue = fract(t.colSeed + 0.27) * 60 + 100;
-    for (let i = 0; i < 3; i++) {
-      let y = baseY - i*22*t.size;
-      let rad = 14 - i*3;
-      let h = 33 - i*8;
+    for (let i = 0; i < numCones; i++) {
+      let y = baseY - i*38*t.size;
+      let rad = 28 - i*4.2; // start large, taper
+      let h = 58 - i*7;
       let col = color(mainHue + 8*i, 55 + 15*i, 78 - 8*i);
       push();
       translate(0, y, 0);
@@ -362,42 +382,42 @@ function drawTree(x, z, t) {
     }
     // Arty: pastel torus "rings"
     push();
-    translate(0, baseY + 9*t.size, 0);
+    translate(0, baseY + 19*t.size, 0);
     rotateX(HALF_PI);
-    ambientMaterial(mainHue+32, 40, 96, 0.19);
-    torus(13*t.size, 2.8*t.size, 24, 8);
+    ambientMaterial(mainHue+32, 40, 96, 0.17);
+    torus(21*t.size, 4.8*t.size, 28, 10);
     pop();
   } else if (t.type === "oak") {
-    trunkH = 36 * t.size;
-    trunkR = 7.1 * t.size;
+    trunkH = 70 * t.size;
+    trunkR = 11 * t.size;
     push();
     translate(0, trunkH/2, 0);
     ambientMaterial(trunkColor);
-    cylinder(trunkR, trunkH, 14, 1, false);
+    cylinder(trunkR, trunkH, 16, 1, false);
     pop();
-    // Foliage: 2-3 layered pastel spheres
+    // Foliage: 2 massive pastel spheres
     let mainHue = fract(t.colSeed + 0.41) * 60 + 90;
-    let folY = trunkH + 20*t.size;
+    let folY = trunkH + 43*t.size;
     for (let i = 0; i < 2; i++) {
-      let y = folY - i*7*t.size;
-      let rad = 22 + 7*i;
+      let y = folY - i*17*t.size;
+      let rad = 50 + 13*i;
       let col = color(mainHue + 14*i, 55 + 22*i, 88 - 8*i);
       push();
       translate(0, y, 0);
       ambientMaterial(col);
-      sphere(rad * t.size, 18, 14);
+      sphere(rad * t.size, 20, 18);
       pop();
     }
     // Arty: torus for halo
     push();
-    translate(0, folY + 8*t.size, 0);
+    translate(0, folY + 15*t.size, 0);
     rotateX(HALF_PI);
     ambientMaterial(mainHue+22, 30, 97, 0.09);
-    torus(17*t.size, 2.1*t.size, 22, 8);
+    torus(34*t.size, 3.1*t.size, 26, 10);
     pop();
   } else if (t.type === "birch") {
-    trunkH = 39 * t.size;
-    trunkR = 5.0 * t.size;
+    trunkH = 80 * t.size;
+    trunkR = 8 * t.size;
     // Trunk: white with black stripes, pastel
     let birchHue = (baseHue + 7) % 360;
     push();
@@ -405,34 +425,34 @@ function drawTree(x, z, t) {
     ambientMaterial(0, 0, 98);
     cylinder(trunkR, trunkH, 14, 1, false);
     // Black stripes
-    for (let i=0; i<5; i++) {
-      let y = -trunkH/2 + trunkH * (i+0.5)/6;
+    for (let i=0; i<7; i++) {
+      let y = -trunkH/2 + trunkH * (i+0.5)/8;
       push();
       translate(0, y, trunkR+0.2);
       rotateX(HALF_PI);
       fill(0, 0, 18);
-      ellipse(0,0, trunkR*1.7, 1.1);
+      ellipse(0,0, trunkR*1.9, 1.5);
       pop();
     }
     pop();
-    // Foliage: pastel green spheres + torus
+    // Foliage: 2 big pastel green spheres + torus
     let mainHue = fract(t.colSeed + 0.19) * 30 + 85;
-    let folY = trunkH + 12*t.size;
+    let folY = trunkH + 28*t.size;
     for (let i = 0; i < 2; i++) {
-      let y = folY - i*7*t.size;
-      let rad = 15 + 4*i;
+      let y = folY - i*13*t.size;
+      let rad = 28 + 7*i;
       let col = color(mainHue + 9*i, 40 + 15*i, 98 - 12*i);
       push();
       translate(0, y, 0);
       ambientMaterial(col);
-      sphere(rad * t.size, 16, 12);
+      sphere(rad * t.size, 18, 14);
       pop();
     }
     push();
-    translate(0, folY + 6*t.size, 0);
+    translate(0, folY + 12*t.size, 0);
     rotateX(HALF_PI);
     ambientMaterial(mainHue+10, 27, 85, 0.11);
-    torus(10*t.size, 1.5*t.size, 16, 6);
+    torus(18*t.size, 2.5*t.size, 18, 8);
     pop();
   }
   pop();
