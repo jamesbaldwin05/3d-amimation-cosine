@@ -364,10 +364,10 @@ function generateCell(cx, cz) {
       // Random size 0.8-1.4
       const size = 0.8 + seededRandom(cx, cz, FLOWER_SALT + 1000 + c*100 + f) * 0.6;
 
-      // Bold colour: random hue 0-360, sat 90-100, bright 95-100
+      // Bold colour: random hue 0-360, sat 98-100, bright 98-100 (cartoon vivid)
       const h = Math.floor(seededRandom(cx, cz, FLOWER_SALT + 2000 + c*100 + f) * 360);
-      const s = 90 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 11);
-      const b = 95 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 6);
+      const s = 98 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 3);
+      const b = 98 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 3);
 
       // Only daisy variant
       const type = "daisy";
@@ -623,7 +623,7 @@ function drawFlower(x, z, f) {
   let stemR = 1.2 * f.size;
   push();
   translate(0, stemH/2, 0);
-  ambientMaterial(124, 28, 73, 0.77);
+  emissiveMaterial(124, 28, 73, 0.77);
   cylinder(stemR, stemH, 10, 1, false);
   pop();
   // Bloom: vivid, arty shape
@@ -664,6 +664,7 @@ function drawFlower(x, z, f) {
     const petalRad = 0.8 * f.size;
     push();
     translate(0, bloomY, 0);
+    noStroke();
     // Draw petals
     for (let i = 0; i < petals; i++) {
       const ang = i * TWO_PI / petals;
@@ -671,13 +672,13 @@ function drawFlower(x, z, f) {
       rotateY(ang);
       translate(0, 0, petalLen);
       rotateX(PI / 2);
-      ambientMaterial(bloomCol);
+      emissiveMaterial(bloomCol);
       cylinder(petalRad, 2*f.size, 6, 1, false);
       pop();
     }
     // Central disc (stamen): pastel yellow, or lightened bloomCol for contrast
     push();
-    ambientMaterial(51, 38, 99); // soft yellow
+    emissiveMaterial(51, 38, 99); // soft yellow
     sphere(1.4*f.size, 8, 6);
     pop();
     pop();
