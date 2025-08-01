@@ -212,34 +212,51 @@ function canPlace(x, z, occupied, minSq) {
 }
 
 function generateCell(cx, cz) {
-  let trees = [];
-  let occupied = [];
-  // --- Trees (min dist 50) ---
-  let treeTries = 0;
-  for (let i = 0; i < TREE_DENSITY; i++) {
-    let placed = false;
-    for (let t = 0; t < 15; t++) {
-      let rx = seededRandom(cx, cz, 101 + i + t*10000) * CELL_SIZE;
-      let rz = seededRandom(cx, cz, 302 + i + t*10000) * CELL_SIZE;
-      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
-      if (canPlace(x, z, occupied, 50*50)) {
-        let variantR = seededRandom(cx, cz, 1000 + i + t*10000);
-        let type = variantR < 0.38 ? "pine" : (variantR < 0.7 ? "oak" : "birch");
-        let tObj = {
-          type: type,
-          x: x,
-          z: z,
-          size: 2.0 + seededRandom(cx, cz, 4000 + i + t*10000) * 1.5, // 2.0 to 3.5
-          colSeed: seededRandom(cx, cz, 7000 + i + t*10000)
-        };
-        trees.push(tObj);
-        occupied.push({x, z});
-        placed = true;
-        break;
+  // Variable spacing by size categories, adding bushes
+  const trees = [];
+  const occupied = [];
+
+  // Helper to place trees with given count, size range, variants, and min radius
+  function placeTrees(count, sizeRange, variants, minRadiusFactor, saltBase=0) {
+    for (let i = 0; i < count; i++) {
+      let placed = false;
+      for (let t = 0; t < 30; t++) {
+        // Deterministic random for each attempt
+        let rx = seededRandom(cx, cz, 1000 + saltBase*1000 + i*100 + t) * CELL_SIZE;
+        let rz = seededRandom(cx, cz, 2000 + saltBase*1000 + i*100 + t) * CELL_SIZE;
+        let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
+        let variantIndex = Math.floor(seededRandom(cx, cz, 3000 + saltBase*1000 + i*100 + t) * variants.length);
+        let variant = variants[variantIndex];
+        let size = sizeRange[0] + seededRandom(cx, cz, 4000 + saltBase*1000 + i*100 + t) * (sizeRange[1] - sizeRange[0]);
+        let radius = minRadiusFactor + size * 10;
+        if (canPlaceRadius(x, z, radius, occupied)) {
+          let tObj = {
+            type: variant,
+            x: x,
+            z: z,
+            size: size,
+            colSeed: seededRandom(cx, cz, 7000 + saltBase*1000 + i*100 + t),
+            radius: radius
+          };
+          trees.push(tObj);
+          occupied.push({x, z, radius});
+          placed = true;
+          break;
+        }
       }
     }
-    treeTries++;
   }
+
+  // Place trees by categories (large, medium, small, bushes)
+  placeTrees(1, [4.0, 5.5], ['pine','oak'], 120, 1);
+  placeTrees(5, [2.0, 3.5], ['pine','oak','birch'], 70, 2);
+  placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
+  placeTrees(4, [0.6, 1.1], ['bush'], 35, 4);
+
+  // Old big tree loop commented for reference
+  // let treeTries = 0;
+  // for (let i = 0; i < TREE_DENSITY; i++) { ... }
+
   // No flowers or animals in pure forest mode
   const flowers = [];
   const animals = [];
@@ -250,6 +267,16 @@ function generateCell(cx, cz) {
 function squaredDist(x1, z1, x2, z2) {
   let dx = x1 - x2, dz = z1 - z2;
   return dx*dx + dz*dz;
+}
+
+// Place with minimum radius between objects
+function canPlaceRadius(x, z, r, occupied) {
+  for (let o of occupied) {
+    let dx = x - o.x, dz = z - o.z;
+    let minDist = r + (o.radius || 0);
+    if ((dx*dx + dz*dz) < minDist*minDist) return false;
+  }
+  return true;
 }
 
 // --- Draw a ground tile for cell (cx, cz) ---
@@ -382,6 +409,13 @@ function drawTree(x, z, t) {
     rotateX(HALF_PI);
     ambientMaterial(mainHue+10, 27, 85, 0.11);
     torus(18*t.size, 2.5*t.size, 18, 8);
+    pop();
+  } else if (t.type === 'bush') {
+    let bushSize = t.size * 14;
+    push();
+    translate(0, bushSize/2, 0);
+    ambientMaterial(110, 50, 70);
+    sphere(bushSize, 14, 12);
     pop();
   }
   pop();
