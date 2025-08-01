@@ -344,14 +344,7 @@ function drawTree(x, z, t) {
       cone(rad * t.size, h * t.size, 18, 2, false);
       pop();
     }
-    // Arty: pastel torus "rings"
-    push();
-    translate(0, baseY + 19*t.size, 0);
-    rotateX(HALF_PI);
-    ambientMaterial(mainHue+32, 40, 96, 0.17);
-    torus(21*t.size, 4.8*t.size, 28, 10);
-    pop();
-  } else if (t.type === "oak") {
+    } else if (t.type === "oak") {
     trunkH = 70 * t.size;
     trunkR = 11 * t.size;
     push();
