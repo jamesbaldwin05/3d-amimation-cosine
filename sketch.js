@@ -10,6 +10,7 @@ const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
 const TREE_DENSITY = 8;         // Trees per cell (approx)
 // const FLOWER_DENSITY = 7;    // (unused, per-cluster)
 const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
+const FLOWER_CLEAR = 90;        // px distance from path centre used to keep flowers off the path.
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -98,7 +99,16 @@ function draw() {
         drawTree(tx, tz, t);
       }
     }
-    // Flowers and animals omitted in pure forest mode
+    // --- Flowers ---
+    if (cell.flowers && cell.flowers.length) {
+      for (let f of cell.flowers) {
+        let fx = ox + f.x, fz = oz + f.z;
+        if (squaredDist(fx, fz, camX, camZ) < DRAW_DIST2) {
+          drawFlower(fx, fz, f);
+        }
+      }
+    }
+    // Animals omitted in pure forest mode
   }
 }
 
@@ -253,8 +263,128 @@ function generateCell(cx, cz) {
   placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
   placeTrees(4, [1.5, 2.4], ['bush'], 55, 4);
 
-  // No flowers or animals in pure forest mode
+  // --- Procedural Flower Generation ---
+  // Add flower clusters per cell, avoiding paths and tree/bush radii
   const flowers = [];
+  // Paths are generated below, but we need to generate them here for clearance checks
+  function edgeData(dir) {
+    // Canonical edge coordinates: N and W move origin to neighbor cell
+    let ax = cx, az = cz, saltBase;
+    if (dir === 'N')      { az -= 1; saltBase = 20000; }
+    else if (dir === 'S') {         saltBase = 20000; }
+    else if (dir === 'E') {         saltBase = 21000; }
+    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
+    const PATH_PROB = 0.04;
+    const rnd = seededRandom(ax, az, saltBase);
+    if (rnd < PATH_PROB) {
+      return {
+        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
+        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
+      };
+    }
+    return null;
+  }
+  const paths = {
+    N: edgeData('N'),
+    S: edgeData('S'),
+    E: edgeData('E'),
+    W: edgeData('W'),
+  };
+
+  // Path flags for easy access (true if path exists)
+  const pathFlags = {
+    N: !!paths.N,
+    S: !!paths.S,
+    E: !!paths.E,
+    W: !!paths.W,
+  };
+
+  // Deterministic: use cx,cz as part of salt
+  const flowerSeedSalt = "flowers";
+
+  // 0-2 clusters per cell on average (tweakable)
+  const clusterCount = Math.floor(
+    seededRandom(cx, cz, flowerSeedSalt + "_count") * 3
+  ); // 0,1,2 clusters
+
+  for (let c = 0; c < clusterCount; ++c) {
+    // For each cluster, choose a centre that is clear of paths
+    let foundCentre = false;
+    let cx0 = 0, cz0 = 0;
+    for (let attempt = 0; attempt < 8; ++attempt) {
+      // Choose centre in [-CELL_SIZE/2, CELL_SIZE/2)
+      cx0 = (seededRandom(cx, cz, flowerSeedSalt + "_clusterc_" + c + "_" + attempt + "_x") - 0.5) * CELL_SIZE;
+      cz0 = (seededRandom(cx, cz, flowerSeedSalt + "_clusterc_" + c + "_" + attempt + "_z") - 0.5) * CELL_SIZE;
+
+      // Path clearance check
+      let tooClosePath = false;
+      if ((pathFlags.N || pathFlags.S) && Math.abs(cx0) < FLOWER_CLEAR) tooClosePath = true;
+      if ((pathFlags.E || pathFlags.W) && Math.abs(cz0) < FLOWER_CLEAR) tooClosePath = true;
+
+      // Avoid trees/bushes: allow slightly closer than tree radius, use canPlaceRadius with radius 8 for cluster centre
+      if (!tooClosePath && canPlaceRadius(cx0, cz0, 8, trees)) {
+        foundCentre = true;
+        break;
+      }
+    }
+    if (!foundCentre) continue;
+
+    // Cluster size: 70% chance 5-15, else 1-4
+    let clusterSize;
+    const clusterSizeRand = seededRandom(cx, cz, flowerSeedSalt + "_clustersize_" + c);
+    if (clusterSizeRand < 0.7) {
+      clusterSize = 5 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_clustersize2_" + c) * 11); // 5-15
+    } else {
+      clusterSize = 1 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_clustersize3_" + c) * 4); // 1-4
+    }
+
+    // For each flower in cluster
+    for (let f = 0; f < clusterSize; ++f) {
+      let fx = 0, fz = 0, placed = false;
+      // up to 3 tries for each flower to avoid trees/bushes
+      for (let tr = 0; tr < 3; ++tr) {
+        // Offset radius 0-25 px
+        const angle = seededRandom(cx, cz, flowerSeedSalt + "_angle_" + c + "_" + f + "_" + tr) * Math.PI * 2;
+        const dist = seededRandom(cx, cz, flowerSeedSalt + "_dist_" + c + "_" + f + "_" + tr) * 25;
+        fx = cx0 + Math.cos(angle) * dist;
+        fz = cz0 + Math.sin(angle) * dist;
+
+        // Path clearance check for flower pos
+        let tooClosePath = false;
+        if ((pathFlags.N || pathFlags.S) && Math.abs(fx) < FLOWER_CLEAR) tooClosePath = true;
+        if ((pathFlags.E || pathFlags.W) && Math.abs(fz) < FLOWER_CLEAR) tooClosePath = true;
+
+        if (!tooClosePath && canPlaceRadius(fx, fz, 6, trees)) {
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) continue;
+
+      // Random size 0.8-1.4
+      const size = 0.8 + seededRandom(cx, cz, flowerSeedSalt + "_size_" + c + "_" + f) * 0.6;
+
+      // Bold colour: random hue 0-360, sat 60-95, bright 85-100
+      const h = Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_hue_" + c + "_" + f) * 360);
+      const s = 60 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_sat_" + c + "_" + f) * 36);
+      const b = 85 + Math.floor(seededRandom(cx, cz, flowerSeedSalt + "_bri_" + c + "_" + f) * 16);
+
+      // type: "sphere" or "torus"
+      const type = (seededRandom(cx, cz, flowerSeedSalt + "_type_" + c + "_" + f) < 0.5) ? "sphere" : "torus";
+
+      flowers.push({
+        x: fx,
+        z: fz,
+        size,
+        h,
+        s,
+        b,
+        type
+      });
+    }
+  }
+
+  // Animals still pure forest mode (empty)
   const animals = [];
 
   // --- Symmetric, endless curvy dirt paths (N/S/E/W) ---
