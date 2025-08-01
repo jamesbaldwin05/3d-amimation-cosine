@@ -369,8 +369,17 @@ function generateCell(cx, cz) {
       const s = 60 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 36);
       const b = 85 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 16);
 
-      // type: "sphere" or "torus"
-      const type = (seededRandom(cx, cz, FLOWER_SALT + 5000 + c*100 + f) < 0.5) ? "sphere" : "torus";
+      // Decide variant and petal count for daisy
+      const variantR = seededRandom(cx, cz, FLOWER_SALT + 6000 + c*100 + f);
+      let type, petals;
+      if (variantR < 0.5) {
+        type = "sphere";
+      } else if (variantR < 0.7) {
+        type = "torus";
+      } else {
+        type = "daisy";
+        petals = 6 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 6500 + c*100 + f) * 4); // 6-9
+      }
 
       flowers.push({
         x: fx,
@@ -379,7 +388,8 @@ function generateCell(cx, cz) {
         h,
         s,
         b,
-        type
+        type,
+        petals
       });
     }
   }
@@ -627,6 +637,7 @@ function drawFlower(x, z, f) {
   // Bloom: vivid, arty shape
   let bloomY = stemH + 2.5*f.size;
   let bloomCol = color(f.h, f.s, f.b);
+
   if (f.type === "sphere") {
     push();
     translate(0, bloomY, 0);
@@ -639,7 +650,7 @@ function drawFlower(x, z, f) {
     sphere(1.2*f.size, 7, 5);
     pop();
     pop();
-  } else {
+  } else if (f.type === "torus") {
     push();
     translate(0, bloomY, 0);
     rotateX(HALF_PI);
@@ -651,6 +662,31 @@ function drawFlower(x, z, f) {
     translate(0, 0, 1.35*f.size);
     ambientMaterial(51, 38, 99);
     sphere(1.3*f.size, 7, 5);
+    pop();
+    pop();
+  } else if (f.type === "daisy") {
+    // Daisy: radial petals + central disc
+    let petals = (typeof f.petals === "number") ? f.petals : 8;
+    // Petals: 6–9, default 8
+    const petalLen = 3.1 * f.size;
+    const petalRad = 0.8 * f.size;
+    push();
+    translate(0, bloomY, 0);
+    // Draw petals
+    for (let i = 0; i < petals; i++) {
+      const ang = i * TWO_PI / petals;
+      push();
+      rotateY(ang);
+      translate(0, 0, petalLen);
+      rotateX(PI / 2);
+      ambientMaterial(bloomCol);
+      cylinder(petalRad, 2*f.size, 6, 1, false);
+      pop();
+    }
+    // Central disc (stamen): pastel yellow, or lightened bloomCol for contrast
+    push();
+    ambientMaterial(51, 38, 99); // soft yellow
+    sphere(1.4*f.size, 8, 6);
     pop();
     pop();
   }
