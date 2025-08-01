@@ -262,6 +262,14 @@ function generateCell(cx, cz) {
     W: !!paths.W,
   };
 
+  // --- Dynamic vegetation clearance for paths ---
+  const PATH_HALF = 93;         // half of PATH_W in drawGroundCell
+  const PATH_MARGIN = 20;       // extra safety buffer
+  const maxAmpNS = Math.max(paths.N?.amp||0, paths.S?.amp||0);
+  const maxAmpEW = Math.max(paths.E?.amp||0, paths.W?.amp||0);
+  const clearX = (maxAmpNS > 0) ? maxAmpNS + PATH_HALF + PATH_MARGIN : 0; // for N/S
+  const clearZ = (maxAmpEW > 0) ? maxAmpEW + PATH_HALF + PATH_MARGIN : 0; // for E/W
+
   // Helper to place trees with given count, size range, variants, and min radius
   function placeTrees(count, sizeRange, variants, minRadiusFactor, saltBase=0) {
     for (let i = 0; i < count; i++) {
