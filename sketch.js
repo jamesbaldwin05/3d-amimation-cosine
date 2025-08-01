@@ -16,7 +16,7 @@ let camAngle = 0;                  // Yaw
 let camPitch = 0;                  // Pitch (mouse look)
 let looking = false;               // Pointer lock state
 
-let invertY = false;
+let invertY = true;
 
 const BASE_SPEED = 8;
 const SPRINT_SPEED = 16;
