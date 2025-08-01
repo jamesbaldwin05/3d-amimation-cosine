@@ -310,39 +310,6 @@ function generateCell(cx, cz) {
   // Add flower clusters per cell, avoiding paths and tree/bush radii
   const flowers = [];
   let flowerOccupied = [];
-  // Paths are generated below, but we need to generate them here for clearance checks
-  function edgeData(dir) {
-    // Canonical edge coordinates: N and W move origin to neighbor cell
-    let ax = cx, az = cz, saltBase;
-    if (dir === 'N')      { az -= 1; saltBase = 20000; }
-    else if (dir === 'S') {         saltBase = 20000; }
-    else if (dir === 'E') {         saltBase = 21000; }
-    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
-    const PATH_PROB = 0.04;
-    const rnd = seededRandom(ax, az, saltBase);
-    if (rnd < PATH_PROB) {
-      return {
-        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
-        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
-      };
-    }
-    return null;
-  }
-  const paths = {
-    N: edgeData('N'),
-    S: edgeData('S'),
-    E: edgeData('E'),
-    W: edgeData('W'),
-  };
-
-  // Path flags for easy access (true if path exists)
-  const pathFlags = {
-    N: !!paths.N,
-    S: !!paths.S,
-    E: !!paths.E,
-    W: !!paths.W,
-  };
-
   // Deterministic: use numeric salt for all flower RNG
   const FLOWER_SALT = 8000;
 
