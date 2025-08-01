@@ -307,7 +307,7 @@ function drawGroundCell(cx, cz) {
   // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
   if (cell && cell.paths) {
     push();
-    translate(0, 0.2, 0);   // avoid z-fighting yet invisible to eye
+    translate(0, 1, 0);   // avoid z-fighting yet invisible to eye
     const PATH_W = 186;   // full width (px), thinner than before
     noStroke();
     fill(30, 65, 35);
