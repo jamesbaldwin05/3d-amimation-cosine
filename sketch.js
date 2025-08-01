@@ -10,9 +10,9 @@ const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
 const TREE_DENSITY = 8;         // Trees per cell (approx)
 // const FLOWER_DENSITY = 7;    // (unused, per-cluster)
 const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
-const FLOWER_CLEAR = 90;        // px distance from path centre used to keep flowers off the path.
+const FLOWER_CLEAR = 190;        // px distance from path centre used to keep flowers off the path.
 const FLOWER_MIN_DIST = 12;     // px minimum allowed distance between flower centers
-const PATH_CLEAR_TREE = 100;    // px clearance from path centre for trees/bushes
+const PATH_CLEAR_TREE = 190;    // px clearance from path centre for trees/bushes
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
