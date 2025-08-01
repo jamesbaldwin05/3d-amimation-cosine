@@ -516,16 +516,20 @@ function drawAnimal(x, z, a) {
   let pastel = color(mainHue, 24, 81);
   if (a.type === "rabbit") {
     scale(a.size);
+    // Vibrant green for all rabbit parts
+    const rabbitCol = color(120, 80, 90); // bright green, HSB
+    const rabbitColLight = color(120, 60, 100); // lighter green for tail/stamen
+
     // Body
     push();
     translate(0, 7, 0);
-    ambientMaterial(pastel);
+    ambientMaterial(rabbitCol);
     sphere(7.8, 16, 14);
     pop();
     // Head
     push();
     translate(0, -3.8, 6.3);
-    ambientMaterial(mainHue, 14, 98);
+    ambientMaterial(rabbitCol);
     sphere(4.2, 12, 10);
     pop();
     // Ears (cylinders)
@@ -534,14 +538,14 @@ function drawAnimal(x, z, a) {
       translate(2.1*side, -10.5, 7.5);
       rotateZ(side*0.10);
       rotateX(-PI/16);
-      ambientMaterial(mainHue+13, 32, 99);
+      ambientMaterial(rabbitCol);
       cylinder(1.35, 8, 8, 1, false);
       pop();
     }
     // Tail
     push();
     translate(0, 8.6, -6.2);
-    ambientMaterial(40, 6, 99);
+    ambientMaterial(rabbitColLight);
     sphere(2.3, 7, 5);
     pop();
   } else if (a.type === "deer") {
