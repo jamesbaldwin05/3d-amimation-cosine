@@ -308,7 +308,7 @@ function drawGroundCell(cx, cz) {
   if (cell && cell.paths) {
     push();
     translate(0, 0.2, 0);   // avoid z-fighting yet invisible to eye
-    const PATH_W = 280;   // full width (px), very wide
+    const PATH_W = 186;   // full width (px), thinner than before
     noStroke();
     fill(30, 65, 35);
 
