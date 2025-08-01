@@ -388,31 +388,7 @@ function generateCell(cx, cz) {
   const animals = [];
 
   // --- Symmetric, endless curvy dirt paths (N/S/E/W) ---
-  // Paths are generated per-edge so that they always connect across cells (unless RNG ends the line).
-  // Each edge: with prob ≈ 0.04, store {amp,phase}; else null.
-  function edgeData(dir) {
-    // Canonical edge coordinates: N and W move origin to neighbor cell
-    let ax = cx, az = cz, saltBase;
-    if (dir === 'N')      { az -= 1; saltBase = 20000; }
-    else if (dir === 'S') {         saltBase = 20000; }
-    else if (dir === 'E') {         saltBase = 21000; }
-    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
-    const PATH_PROB = 0.04;
-    const rnd = seededRandom(ax, az, saltBase);
-    if (rnd < PATH_PROB) {
-      return {
-        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
-        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
-      };
-    }
-    return null;
-  }
-  const paths = {
-    N: edgeData('N'),
-    S: edgeData('S'),
-    E: edgeData('E'),
-    W: edgeData('W'),
-  };
+  // (Path generation handled above for flower clearance and cell connectivity.)
 
   return {trees, flowers, animals, paths};
 }
