@@ -307,9 +307,10 @@ function drawGroundCell(cx, cz) {
   // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
   if (cell && cell.paths) {
     push();
-    const PATH_W = 140;   // full width (px)
+    translate(0, 0.05, 0);   // avoid z-fighting yet invisible to eye
+    const PATH_W = 280;   // full width (px), very wide
     noStroke();
-    fill(30, 60, 45);
+    fill(30, 65, 35);
 
     function ribbon(dir, data) {
       if (!data) return;
