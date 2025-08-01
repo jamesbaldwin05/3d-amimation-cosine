@@ -251,7 +251,7 @@ function generateCell(cx, cz) {
   placeTrees(1, [4.0, 5.5], ['pine','oak'], 120, 1);
   placeTrees(5, [2.0, 3.5], ['pine','oak','birch'], 70, 2);
   placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
-  placeTrees(4, [0.6, 1.1], ['bush'], 35, 4);
+  placeTrees(4, [0.8, 1.4], ['bush'], 40, 4);
 
   // Old big tree loop commented for reference
   // let treeTries = 0;
@@ -411,12 +411,22 @@ function drawTree(x, z, t) {
     torus(18*t.size, 2.5*t.size, 18, 8);
     pop();
   } else if (t.type === 'bush') {
-    let bushSize = t.size * 14;
-    push();
-    translate(0, bushSize/2, 0);
-    ambientMaterial(110, 50, 70);
-    sphere(bushSize, 14, 12);
-    pop();
+    // Multi-sphere cluster bush
+    let base = t.size * 18; // larger scale
+    const seed = t.colSeed;
+    for(let i = 0; i < 4; i++) {
+      let ang = (seed*97 + i*1.3)%TWO_PI;
+      let rad = base * 0.35 + base * 0.15 * i;
+      let offR = (seed*53.1 + i*0.7)%1 * base*0.35;
+      let ox = cos(ang) * offR;
+      let oz = sin(ang) * offR;
+      let oy = (i === 0 ? 0 : -base * 0.07);
+      push();
+      translate(ox, base*0.5 + oy, oz);
+      ambientMaterial(110, 45 + i*5, 60 + i*8);
+      sphere(rad, 14, 12);
+      pop();
+    }
   }
   pop();
 }
