@@ -51,6 +51,7 @@ function draw() {
 
   // --- Simple atmospheric fog (optional) ---
   push();
+  translate(0, -1, 0); // Move fog plane slightly below ground to avoid flicker
   rotateX(-HALF_PI);
   fill(210, 40, 95, 0.18); // Fog color, semi-transparent
   noStroke();
@@ -123,13 +124,13 @@ function movementStep() {
   }
   // Strafe left
   if (keyIsPressedOrDown("A", LEFT_ARROW)) {
-    camX += cos(camAngle - HALF_PI) * speed * 0.8;
-    camZ += sin(camAngle - HALF_PI) * speed * 0.8;
+    camX += cos(camAngle + HALF_PI) * speed * 0.8;
+    camZ += sin(camAngle + HALF_PI) * speed * 0.8;
   }
   // Strafe right
   if (keyIsPressedOrDown("D", RIGHT_ARROW)) {
-    camX += cos(camAngle + HALF_PI) * speed * 0.8;
-    camZ += sin(camAngle + HALF_PI) * speed * 0.8;
+    camX += cos(camAngle - HALF_PI) * speed * 0.8;
+    camZ += sin(camAngle - HALF_PI) * speed * 0.8;
   }
 }
 
