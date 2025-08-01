@@ -307,7 +307,9 @@ function drawGroundCell(cx, cz) {
   // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
   if (cell && cell.paths) {
     push();
-    translate(0, 20, 0);   // avoid z-fighting yet invisible to eye
+    // Draw at ground level; disable depth test so path "repaints" ground with no z-fighting
+    const gl = drawingContext;  // WEBGL rendering context
+    gl.disable(gl.DEPTH_TEST);
     const PATH_W = 186;   // full width (px), thinner than before
     noStroke();
     fill(30, 65, 35);
@@ -345,6 +347,7 @@ function drawGroundCell(cx, cz) {
     ribbon('E', cell.paths.E);
     ribbon('W', cell.paths.W);
 
+    gl.enable(gl.DEPTH_TEST);
     pop();
   }
   pop();
