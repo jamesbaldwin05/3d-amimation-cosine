@@ -11,6 +11,7 @@ const TREE_DENSITY = 8;         // Trees per cell (approx)
 // const FLOWER_DENSITY = 7;    // (unused, per-cluster)
 const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
 const FLOWER_CLEAR = 90;        // px distance from path centre used to keep flowers off the path.
+const FLOWER_MIN_DIST = 12;     // px minimum allowed distance between flower centers
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -266,6 +267,7 @@ function generateCell(cx, cz) {
   // --- Procedural Flower Generation ---
   // Add flower clusters per cell, avoiding paths and tree/bush radii
   const flowers = [];
+  let flowerOccupied = [];
   // Paths are generated below, but we need to generate them here for clearance checks
   function edgeData(dir) {
     // Canonical edge coordinates: N and W move origin to neighbor cell
@@ -354,7 +356,8 @@ function generateCell(cx, cz) {
         if ((pathFlags.N || pathFlags.S) && Math.abs(fx) < FLOWER_CLEAR) tooClosePath = true;
         if ((pathFlags.E || pathFlags.W) && Math.abs(fz) < FLOWER_CLEAR) tooClosePath = true;
 
-        if (!tooClosePath && canPlaceRadius(fx, fz, 6, trees)) {
+        // Prevent overlap with other flowers in same cell
+        if (!tooClosePath && canPlaceRadius(fx, fz, FLOWER_MIN_DIST, trees.concat(flowerOccupied))) {
           placed = true;
           break;
         }
@@ -383,6 +386,7 @@ function generateCell(cx, cz) {
         type,
         petals
       });
+      flowerOccupied.push({ x: fx, z: fz, radius: FLOWER_MIN_DIST });
     }
   }
 
