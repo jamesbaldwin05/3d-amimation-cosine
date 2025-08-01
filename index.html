@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Procedural 3D Forest Walk (p5.js)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- p5.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/addons/p5.dom.min.js"></script>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #dde7ee; /* Soft neutral background to match sky blue */
+        font-family: 'Segoe UI', 'Arial', sans-serif;
+      }
+      canvas {
+        display: block;
+        position: fixed;
+        top: 0; left: 0;
+        z-index: 0;
+      }
+      #instructions {
+        position: absolute;
+        top: 24px;
+        right: 36px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 12px;
+        padding: 18px 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        font-size: 1.05rem;
+        z-index: 2;
+        max-width: 340px;
+        color: #2a4056;
+        letter-spacing: 0.01em;
+        line-height: 1.7;
+        user-select: none;
+      }
+      @media (max-width: 600px) {
+        #instructions {
+          top: 8px;
+          right: 8px;
+          font-size: 0.93rem;
+          padding: 10px 14px;
+          max-width: 99vw;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="instructions">
+      <strong>Forest Walk – Controls:</strong><br>
+      <ul style="margin:10px 0 0 0; padding-left: 16px;">
+        <li><b>WASD</b> / <b>Arrow keys</b>: Move / Strafe</li>
+        <li><b>Mouse</b>: Look (<i>drag horizontally</i>)</li>
+        <li><b>Shift</b>: Sprint</li>
+        <li><b>Esc</b>: Unlock mouse</li>
+      </ul>
+      <div style="margin-top:8px;font-size:0.93em;color:#5b8a99;">
+        Explore the 3D forest! Trees, flowers, and animals are randomly placed.<br>
+        Reload for a new world.
+      </div>
+      <div style="margin-top:10px;font-size:0.95em;">
+        <label>
+          <input type="checkbox" id="invertY" checked> Invert mouse Y
+        </label>
+      </div>
+    </div>
+    <script src="sketch.js"></script>
+  </body>
+</html>
