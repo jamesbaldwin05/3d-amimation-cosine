@@ -251,7 +251,7 @@ function generateCell(cx, cz) {
   placeTrees(1, [4.0, 5.5], ['pine','oak'], 120, 1);
   placeTrees(5, [2.0, 3.5], ['pine','oak','birch'], 70, 2);
   placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
-  placeTrees(4, [0.8, 1.4], ['bush'], 40, 4);
+  placeTrees(4, [1.5, 2.4], ['bush'], 55, 4);
 
   // Old big tree loop commented for reference
   // let treeTries = 0;
@@ -411,19 +411,26 @@ function drawTree(x, z, t) {
     torus(18*t.size, 2.5*t.size, 18, 8);
     pop();
   } else if (t.type === 'bush') {
-    // Multi-sphere cluster bush
-    let base = t.size * 18; // larger scale
-    const seed = t.colSeed;
-    for(let i = 0; i < 4; i++) {
-      let ang = (seed*97 + i*1.3)%TWO_PI;
-      let rad = base * 0.35 + base * 0.15 * i;
-      let offR = (seed*53.1 + i*0.7)%1 * base*0.35;
-      let ox = cos(ang) * offR;
-      let oz = sin(ang) * offR;
-      let oy = (i === 0 ? 0 : -base * 0.07);
+    // 6-sphere textured bush: 1 center, 5 lobes with deterministic offsets
+    let base = t.size * 25; // larger scale
+    // central sphere
+    push();
+    translate(0, base*0.55, 0);
+    ambientMaterial(110, 45, 60);
+    sphere(base*0.6, 16, 14);
+    pop();
+    // surrounding lobes
+    for (let i = 1; i <= 5; i++) {
+      let rVal = fract(t.colSeed + i*0.37);
+      let ang = rVal * TWO_PI;
+      let dist = base * (0.35 + rVal*0.25);
+      let ox = cos(ang)*dist;
+      let oz = sin(ang)*dist;
+      let oy = -base*0.15 + rVal*base*0.1;
+      let rad = base*(0.33 + rVal*0.15);
       push();
-      translate(ox, base*0.5 + oy, oz);
-      ambientMaterial(110, 45 + i*5, 60 + i*8);
+      translate(ox, rad*0.8 + oy, oz);
+      ambientMaterial(110 + rVal*10, 45 + i*4, 55 + rVal*15);
       sphere(rad, 14, 12);
       pop();
     }
