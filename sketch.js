@@ -260,7 +260,21 @@ function generateCell(cx, cz) {
   // No flowers or animals in pure forest mode
   const flowers = [];
   const animals = [];
-  return {trees, flowers, animals};
+
+  // --- Procedural dirt paths on the forest floor (N/S/E/W) ---
+  // Each path direction is true with prob ≈ 0.28, using seededRandom and unique salts
+  const PATH_PROB = 0.28;
+  function pathExists(dirSalt) {
+    return seededRandom(cx, cz, dirSalt) < PATH_PROB;
+  }
+  const paths = {
+    N: pathExists(9000),
+    S: pathExists(9001),
+    E: pathExists(9002),
+    W: pathExists(9003),
+  };
+
+  return {trees, flowers, animals, paths};
 }
 
 // Squared distance helper
@@ -281,11 +295,43 @@ function canPlaceRadius(x, z, r, occupied) {
 
 // --- Draw a ground tile for cell (cx, cz) ---
 function drawGroundCell(cx, cz) {
+  const cell = cellMap.get(cellKey(cx, cz));
   push();
   translate(cx * CELL_SIZE, 0, cz * CELL_SIZE);
   rotateX(-HALF_PI);
   fill(120, 38, 55);
   plane(CELL_SIZE, CELL_SIZE);
+
+  // Overlay procedural dirt paths if present
+  if (cell && cell.paths) {
+    push();
+    fill(30, 60, 45); // warm brown (HSB)
+    noStroke();
+    rectMode(CENTER);
+    const w = 36;
+    let count = 0;
+    if (cell.paths.N) {
+      rect(0, -CELL_SIZE/4, w, CELL_SIZE/2 + w);
+      count++;
+    }
+    if (cell.paths.S) {
+      rect(0,  CELL_SIZE/4, w, CELL_SIZE/2 + w);
+      count++;
+    }
+    if (cell.paths.E) {
+      rect( CELL_SIZE/4, 0, CELL_SIZE/2 + w, w);
+      count++;
+    }
+    if (cell.paths.W) {
+      rect(-CELL_SIZE/4, 0, CELL_SIZE/2 + w, w);
+      count++;
+    }
+    // Draw a center patch for junctions
+    if (count > 1) {
+      rect(0, 0, w, w);
+    }
+    pop();
+  }
   pop();
 }
 
