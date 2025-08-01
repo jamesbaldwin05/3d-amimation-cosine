@@ -550,6 +550,10 @@ function drawAnimal(x, z, a) {
     pop();
   } else if (a.type === "deer") {
     scale(a.size);
+    // Bright red deer!
+    const deerCol = color(0, 80, 90);      // bright red (HSB)
+    const deerColLight = color(0, 60, 95); // lighter red for tail/antlers
+
     // Y-offsets for upright deer
     const BODY_Y = 6.2;
     const LEG_Y = -15.7;
@@ -561,7 +565,7 @@ function drawAnimal(x, z, a) {
     // Body
     push();
     translate(0, BODY_Y, 0);
-    ambientMaterial(mainHue+7, 17, 87);
+    ambientMaterial(deerCol);
     sphere(10.2, 18, 14);
     pop();
 
@@ -569,28 +573,29 @@ function drawAnimal(x, z, a) {
     push();
     translate(0, NECK_Y, 7.7);
     rotateX(-PI/7);
-    ambientMaterial(mainHue+12, 12, 97);
+    ambientMaterial(deerCol);
     cylinder(2.8, 10, 10, 1, false);
     // Head
     translate(0, HEAD_Y, 0);
+    ambientMaterial(deerCol);
     sphere(5.7, 12, 10);
     // Ears (cylinders)
     for (let side of [-1, 1]) {
       push();
       translate(2.2 * side, HEAD_Y + 1.5, 2.7);
       rotateZ(side*0.18);
-      ambientMaterial(mainHue+20, 11, 98);
+      ambientMaterial(deerCol);
       cylinder(0.9, 5, 8, 1, false);
       pop();
     }
     pop();
 
-    // Legs (simple, 4 pastel cylinders)
+    // Legs (simple, 4 red cylinders)
     for (let side of [-1, 1]) {
       for (let f of [1, -1]) {
         push();
         translate(3.9 * side, LEG_Y, 5.2 * f);
-        ambientMaterial(mainHue+3, 7, 96);
+        ambientMaterial(deerCol);
         cylinder(0.95, 12, 8, 1, false);
         pop();
       }
@@ -599,7 +604,7 @@ function drawAnimal(x, z, a) {
     // Tail
     push();
     translate(0, TAIL_Y, -8.2);
-    ambientMaterial(43, 5, 98);
+    ambientMaterial(deerColLight);
     sphere(1.8, 6, 5);
     pop();
 
@@ -609,7 +614,7 @@ function drawAnimal(x, z, a) {
       translate(2.9*side, ANTLER_Y, 5.1);
       rotateZ(side * 0.35);
       rotateX(-PI/3.5);
-      ambientMaterial(mainHue+21, 20, 99, 0.35);
+      ambientMaterial(deerColLight, 0.35);
       torus(2.7, 0.36, 10, 4);
       pop();
     }
