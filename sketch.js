@@ -304,12 +304,12 @@ function drawGroundCell(cx, cz) {
   fill(120, 38, 55);
   plane(CELL_SIZE, CELL_SIZE);
 
-  // Overlay sparse curvy dirt paths, slightly above ground to avoid z-fighting
+  // Overlay sparse curvy dirt paths, flush with ground (not raised)
   if (cell && cell.paths) {
     push();
-    translate(0, 0.2, 0); // raise above ground to avoid z-fighting
+    // (No translation: dirt tracks sit exactly on grass plane)
     stroke(30, 60, 45);
-    strokeWeight(36);
+    strokeWeight(70);
     strokeCap(SQUARE);
     noFill();
 
