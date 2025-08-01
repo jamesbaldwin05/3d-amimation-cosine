@@ -10,9 +10,9 @@ const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
 const TREE_DENSITY = 8;         // Trees per cell (approx)
 // const FLOWER_DENSITY = 7;    // (unused, per-cluster)
 const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
-const FLOWER_CLEAR = 90;        // px distance from path centre used to keep flowers off the path.
 const FLOWER_MIN_DIST = 12;     // px minimum allowed distance between flower centers
-const PATH_CLEAR_TREE = 100;    // px clearance from path centre for trees/bushes
+// const FLOWER_CLEAR = 190;        // px distance from path centre used to keep flowers off the path. (now dynamic)
+// const PATH_CLEAR_TREE = 190;    // px clearance from path centre for trees/bushes (now dynamic)
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -223,6 +223,7 @@ function canPlace(x, z, occupied, minSq) {
   return true;
 }
 
+// ====== DYNAMIC PATH-BAND CLEARANCE CELL GENERATION ======
 function generateCell(cx, cz) {
   // Variable spacing by size categories, adding bushes
   const trees = [];
@@ -262,6 +263,14 @@ function generateCell(cx, cz) {
     W: !!paths.W,
   };
 
+  // --- Dynamic, bullet-proof path bands ---
+  const PATH_HALF = 93;         // half of PATH_W in drawGroundCell
+  const PATH_MARGIN = 20;       // extra safety buffer
+  const maxAmpNS = Math.max(paths.N?.amp||0, paths.S?.amp||0);
+  const maxAmpEW = Math.max(paths.E?.amp||0, paths.W?.amp||0);
+  const bandX = (maxAmpNS > 0) ? PATH_HALF + maxAmpNS + PATH_MARGIN : 0; // for N/S
+  const bandZ = (maxAmpEW > 0) ? PATH_HALF + maxAmpEW + PATH_MARGIN : 0; // for E/W
+
   // Helper to place trees with given count, size range, variants, and min radius
   function placeTrees(count, sizeRange, variants, minRadiusFactor, saltBase=0) {
     for (let i = 0; i < count; i++) {
@@ -276,10 +285,10 @@ function generateCell(cx, cz) {
         let size = sizeRange[0] + seededRandom(cx, cz, 4000 + saltBase*1000 + i*100 + t) * (sizeRange[1] - sizeRange[0]);
         let radius = minRadiusFactor + size * 10;
 
-        // Path clearance check for trees/bushes
+        // Path band clearance for trees/bushes (absolute no-go within band+radius)
         let tooClosePath = false;
-        if ((pathFlags.N || pathFlags.S) && Math.abs(x) < PATH_CLEAR_TREE) tooClosePath = true;
-        if ((pathFlags.E || pathFlags.W) && Math.abs(z) < PATH_CLEAR_TREE) tooClosePath = true;
+        if (bandX && Math.abs(x) < bandX + radius) tooClosePath = true;
+        if (bandZ && Math.abs(z) < bandZ + radius) tooClosePath = true;
         if (tooClosePath) continue; // try another spot
 
         if (canPlaceRadius(x, z, radius, occupied)) {
@@ -310,40 +319,6 @@ function generateCell(cx, cz) {
   // Add flower clusters per cell, avoiding paths and tree/bush radii
   const flowers = [];
   let flowerOccupied = [];
-  // Paths are generated below, but we need to generate them here for clearance checks
-  function edgeData(dir) {
-    // Canonical edge coordinates: N and W move origin to neighbor cell
-    let ax = cx, az = cz, saltBase;
-    if (dir === 'N')      { az -= 1; saltBase = 20000; }
-    else if (dir === 'S') {         saltBase = 20000; }
-    else if (dir === 'E') {         saltBase = 21000; }
-    else if (dir === 'W') { ax -= 1; saltBase = 21000; }
-    const PATH_PROB = 0.04;
-    const rnd = seededRandom(ax, az, saltBase);
-    if (rnd < PATH_PROB) {
-      return {
-        amp: seededRandom(ax, az, saltBase + 1) * CELL_SIZE * 0.18 + 12,
-        phase: seededRandom(ax, az, saltBase + 2) * TWO_PI
-      };
-    }
-    return null;
-  }
-  const paths = {
-    N: edgeData('N'),
-    S: edgeData('S'),
-    E: edgeData('E'),
-    W: edgeData('W'),
-  };
-
-  // Path flags for easy access (true if path exists)
-  const pathFlags = {
-    N: !!paths.N,
-    S: !!paths.S,
-    E: !!paths.E,
-    W: !!paths.W,
-  };
-
-  // Deterministic: use numeric salt for all flower RNG
   const FLOWER_SALT = 8000;
 
   // 0-2 clusters per cell on average (tweakable)
@@ -360,10 +335,10 @@ function generateCell(cx, cz) {
       cx0 = (seededRandom(cx, cz, FLOWER_SALT + 10 + c*100 + attempt*2) - 0.5) * CELL_SIZE;
       cz0 = (seededRandom(cx, cz, FLOWER_SALT + 11 + c*100 + attempt*2) - 0.5) * CELL_SIZE;
 
-      // Path clearance check
+      // Path band clearance for cluster centre
       let tooClosePath = false;
-      if ((pathFlags.N || pathFlags.S) && Math.abs(cx0) < FLOWER_CLEAR) tooClosePath = true;
-      if ((pathFlags.E || pathFlags.W) && Math.abs(cz0) < FLOWER_CLEAR) tooClosePath = true;
+      if ((bandX && Math.abs(cx0) < bandX + FLOWER_MIN_DIST) ||
+          (bandZ && Math.abs(cz0) < bandZ + FLOWER_MIN_DIST)) tooClosePath = true;
 
       // Avoid trees/bushes: allow slightly closer than tree radius, use canPlaceRadius with radius 8 for cluster centre
       if (!tooClosePath && canPlaceRadius(cx0, cz0, 8, trees)) {
@@ -393,10 +368,10 @@ function generateCell(cx, cz) {
         fx = cx0 + Math.cos(angle) * dist;
         fz = cz0 + Math.sin(angle) * dist;
 
-        // Path clearance check for flower pos
+        // Path band clearance for flower pos
         let tooClosePath = false;
-        if ((pathFlags.N || pathFlags.S) && Math.abs(fx) < FLOWER_CLEAR) tooClosePath = true;
-        if ((pathFlags.E || pathFlags.W) && Math.abs(fz) < FLOWER_CLEAR) tooClosePath = true;
+        if ((bandX && Math.abs(fx) < bandX + FLOWER_MIN_DIST) ||
+            (bandZ && Math.abs(fz) < bandZ + FLOWER_MIN_DIST)) tooClosePath = true;
 
         // Prevent overlap with other flowers in same cell
         if (!tooClosePath && canPlaceRadius(fx, fz, FLOWER_MIN_DIST, trees.concat(flowerOccupied))) {
