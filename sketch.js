@@ -364,33 +364,34 @@ function generateCell(cx, cz) {
       // Random size 0.8-1.4
       const size = 0.8 + seededRandom(cx, cz, FLOWER_SALT + 1000 + c*100 + f) * 0.6;
 
-      // Bold colour: random hue 0-360, sat 60-95, bright 85-100
+      // Bold colour: random hue 0-360, sat 75-100, bright 90-100
       const h = Math.floor(seededRandom(cx, cz, FLOWER_SALT + 2000 + c*100 + f) * 360);
-      const s = 60 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 36);
-      const b = 85 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 16);
+      const s = 75 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 3000 + c*100 + f) * 26);
+      const b = 90 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 4000 + c*100 + f) * 11);
 
-      // Decide variant and petal count for daisy
+      // Decide variant: 60% torus, 40% daisy
       const variantR = seededRandom(cx, cz, FLOWER_SALT + 6000 + c*100 + f);
       let type, petals;
-      if (variantR < 0.5) {
-        type = "sphere";
-      } else if (variantR < 0.7) {
+      if (variantR < 0.6) {
         type = "torus";
       } else {
         type = "daisy";
         petals = 6 + Math.floor(seededRandom(cx, cz, FLOWER_SALT + 6500 + c*100 + f) * 4); // 6-9
       }
 
-      flowers.push({
+      const flowerObj = {
         x: fx,
         z: fz,
         size,
         h,
         s,
         b,
-        type,
-        petals
-      });
+        type
+      };
+      if (type === "daisy") {
+        flowerObj.petals = petals;
+      }
+      flowers.push(flowerObj);
     }
   }
 
