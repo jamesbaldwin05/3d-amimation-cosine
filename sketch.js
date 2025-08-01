@@ -253,25 +253,27 @@ function generateCell(cx, cz) {
   placeTrees(6, [1.2, 1.9], ['pine','oak','birch'], 45, 3);
   placeTrees(4, [1.5, 2.4], ['bush'], 55, 4);
 
-  // Old big tree loop commented for reference
-  // let treeTries = 0;
-  // for (let i = 0; i < TREE_DENSITY; i++) { ... }
-
   // No flowers or animals in pure forest mode
   const flowers = [];
   const animals = [];
 
-  // --- Procedural dirt paths on the forest floor (N/S/E/W) ---
-  // Each path direction is true with prob ≈ 0.28, using seededRandom and unique salts
-  const PATH_PROB = 0.28;
-  function pathExists(dirSalt) {
-    return seededRandom(cx, cz, dirSalt) < PATH_PROB;
+  // --- Sparse, curvy dirt paths (N/S/E/W) ---
+  // Each direction: with prob ≈ 0.12, store {amp,phase}; else null
+  const PATH_PROB = 0.12;
+  function curvyData(dirSalt) {
+    if (seededRandom(cx, cz, dirSalt) < PATH_PROB) {
+      return {
+        amp: seededRandom(cx, cz, 9500 + dirSalt) * CELL_SIZE * 0.18 + 12,
+        phase: seededRandom(cx, cz, 9600 + dirSalt) * TWO_PI
+      };
+    }
+    return null;
   }
   const paths = {
-    N: pathExists(9000),
-    S: pathExists(9001),
-    E: pathExists(9002),
-    W: pathExists(9003),
+    N: curvyData(9000),
+    S: curvyData(9001),
+    E: curvyData(9002),
+    W: curvyData(9003),
   };
 
   return {trees, flowers, animals, paths};
@@ -302,34 +304,40 @@ function drawGroundCell(cx, cz) {
   fill(120, 38, 55);
   plane(CELL_SIZE, CELL_SIZE);
 
-  // Overlay procedural dirt paths if present
+  // Overlay sparse curvy dirt paths, slightly above ground to avoid z-fighting
   if (cell && cell.paths) {
     push();
-    fill(30, 60, 45); // warm brown (HSB)
-    noStroke();
-    rectMode(CENTER);
-    const w = 36;
-    let count = 0;
-    if (cell.paths.N) {
-      rect(0, -CELL_SIZE/4, w, CELL_SIZE/2 + w);
-      count++;
+    translate(0, 0.2, 0); // raise above ground to avoid z-fighting
+    stroke(30, 60, 45);
+    strokeWeight(36);
+    strokeCap(SQUARE);
+    noFill();
+
+    function drawCurvy(dir, data) {
+      if (!data) return;
+      const segments = 16;
+      const len = CELL_SIZE/2 + 80;
+      push();
+      beginShape();
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const a = data.amp * Math.sin(t * Math.PI) * Math.sin(data.phase);
+        let x = 0, y = 0;
+        if (dir === 'N') { x = a; y = -len * t; }
+        if (dir === 'S') { x = a; y =  len * t; }
+        if (dir === 'E') { x =  len * t; y = a; }
+        if (dir === 'W') { x = -len * t; y = a; }
+        vertex(x, y);
+      }
+      endShape();
+      pop();
     }
-    if (cell.paths.S) {
-      rect(0,  CELL_SIZE/4, w, CELL_SIZE/2 + w);
-      count++;
-    }
-    if (cell.paths.E) {
-      rect( CELL_SIZE/4, 0, CELL_SIZE/2 + w, w);
-      count++;
-    }
-    if (cell.paths.W) {
-      rect(-CELL_SIZE/4, 0, CELL_SIZE/2 + w, w);
-      count++;
-    }
-    // Draw a center patch for junctions
-    if (count > 1) {
-      rect(0, 0, w, w);
-    }
+
+    drawCurvy('N', cell.paths.N);
+    drawCurvy('S', cell.paths.S);
+    drawCurvy('E', cell.paths.E);
+    drawCurvy('W', cell.paths.W);
+
     pop();
   }
   pop();
