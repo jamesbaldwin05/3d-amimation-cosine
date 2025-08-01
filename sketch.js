@@ -259,7 +259,7 @@ function generateCell(cx, cz) {
 
   // --- Sparse, curvy dirt paths (N/S/E/W) ---
   // Each direction: with prob ≈ 0.12, store {amp,phase}; else null
-  const PATH_PROB = 0.12;
+  const PATH_PROB = 0.25;
   function curvyData(dirSalt) {
     if (seededRandom(cx, cz, dirSalt) < PATH_PROB) {
       return {
