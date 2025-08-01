@@ -38,9 +38,10 @@ function windowResized() {
 function draw() {
   background(210, 40, 94); // Pastel sky blue (HSB)
 
-  // --- Lighting: sunset orange, ambient + directional
-  ambientLight(36, 35, 95, 0.30);
-  directionalLight(33, 90, 99, -0.4, -1.1, -0.25); // warm sunset
+  // --- Lighting: moodier/darker forest ---
+  ambientLight(15, 20, 25);
+  directionalLight(180, 140, 110, -0.4, -1, -0.3); // warm, soft
+  directionalLight(80, 120, 150, 0.6, -0.8, 0.2);  // cool rim
 
   // --- Camera look vector
   let lookX = camX + cos(camAngle) * cos(camPitch);
@@ -58,14 +59,6 @@ function draw() {
   plane(CELL_SIZE * (RENDER_RADIUS+2), CELL_SIZE * (RENDER_RADIUS+2));
   pop();
 
-  // --- Ground plane (large) ---
-  push();
-  rotateX(-HALF_PI);
-  fill(120, 38, 70);
-  ambientMaterial(120, 38, 70);
-  plane(4000, 4000);
-  pop();
-
   // --- Movement per frame, synced with draw ---
   movementStep();
 
@@ -80,11 +73,15 @@ function draw() {
     }
   }
 
-  // --- Draw all objects in visible cells ---
+  // --- Draw all objects (and ground) in visible cells ---
   for (let [key, cell] of cellMap.entries()) {
     let [cx, cz] = key.split(',').map(Number);
     let ox = cx * CELL_SIZE;
     let oz = cz * CELL_SIZE;
+
+    // Draw ground tile for this cell
+    drawGroundCell(cx, cz);
+
     // Trees
     for (let t of cell.trees) {
       let tx = ox + t.x, tz = oz + t.z;
@@ -207,58 +204,96 @@ function ensureCell(cx, cz) {
 }
 
 // Generate cell objects deterministically
+function canPlace(x, z, occupied, minSq) {
+  // Returns true if (x,z) is at least sqrt(minSq) away from all in occupied[]
+  for (let p of occupied) {
+    let dx = x - p.x, dz = z - p.z;
+    if (dx*dx + dz*dz < minSq) return false;
+  }
+  return true;
+}
+
 function generateCell(cx, cz) {
   let trees = [], flowers = [], animals = [];
-  // --- Trees ---
+  let occupied = [];
+  // --- Trees (min dist 50) ---
+  let treeTries = 0;
   for (let i = 0; i < TREE_DENSITY; i++) {
-    // Spread evenly, then jitter (deterministically)
-    let rx = seededRandom(cx, cz, 101 + i) * CELL_SIZE;
-    let rz = seededRandom(cx, cz, 302 + i) * CELL_SIZE;
-    let variantR = seededRandom(cx, cz, 1000 + i);
-    let type = variantR < 0.38 ? "pine" : (variantR < 0.7 ? "oak" : "birch");
-    let t = {
-      type: type,
-      x: rx - CELL_SIZE / 2,
-      z: rz - CELL_SIZE / 2,
-      size: 1.0 + seededRandom(cx, cz, 4000 + i) * 0.85,
-      colSeed: seededRandom(cx, cz, 7000 + i)
-    };
-    trees.push(t);
+    let placed = false;
+    for (let t = 0; t < 15; t++) {
+      let rx = seededRandom(cx, cz, 101 + i + t*10000) * CELL_SIZE;
+      let rz = seededRandom(cx, cz, 302 + i + t*10000) * CELL_SIZE;
+      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
+      if (canPlace(x, z, occupied, 50*50)) {
+        let variantR = seededRandom(cx, cz, 1000 + i + t*10000);
+        let type = variantR < 0.38 ? "pine" : (variantR < 0.7 ? "oak" : "birch");
+        let tObj = {
+          type: type,
+          x: x,
+          z: z,
+          size: 1.8 + seededRandom(cx, cz, 4000 + i + t*10000) * 1.2, // 1.8 to 3.0
+          colSeed: seededRandom(cx, cz, 7000 + i + t*10000)
+        };
+        trees.push(tObj);
+        occupied.push({x, z});
+        placed = true;
+        break;
+      }
+    }
+    treeTries++;
   }
-  // --- Flowers ---
-  for (let i = 0; i < FLOWER_DENSITY; i++) {
-    let rx = seededRandom(cx, cz, 801 + i) * CELL_SIZE;
-    let rz = seededRandom(cx, cz, 902 + i) * CELL_SIZE;
-    let ftype = seededRandom(cx, cz, 2000 + i) < 0.5 ? "sphere" : "torus";
-    let colh = fract(seededRandom(cx, cz, 888 + i) + 0.1 * i) * 360;
-    let cols = 60 + 35 * seededRandom(cx, cz, 889 + i);
-    let colb = 80 + 20 * seededRandom(cx, cz, 890 + i);
-    let f = {
-      type: ftype,
-      x: rx - CELL_SIZE / 2,
-      z: rz - CELL_SIZE / 2,
-      size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + i),
-      h: colh, s: cols, b: colb
-    };
-    flowers.push(f);
-  }
-  // --- Animals ---
+  // --- Animals (min dist 70 from anything) ---
   for (let i = 0; i < ANIMAL_DENSITY; i++) {
-    let rx = seededRandom(cx, cz, 1201 + i) * CELL_SIZE;
-    let rz = seededRandom(cx, cz, 1301 + i) * CELL_SIZE;
-    let variantR = seededRandom(cx, cz, 1400 + i);
-    let type = variantR < 0.5 ? "rabbit" : "deer";
-    let a = {
-      type: type,
-      x: rx - CELL_SIZE / 2,
-      z: rz - CELL_SIZE / 2,
-      size: type === "rabbit"
-        ? 0.86 + 0.22 * seededRandom(cx, cz, 1500 + i)
-        : 1.45 + 0.65 * seededRandom(cx, cz, 1600 + i),
-      colSeed: seededRandom(cx, cz, 1700 + i),
-      idlePhase: TWO_PI * seededRandom(cx, cz, 1800 + i)
-    };
-    animals.push(a);
+    let placed = false;
+    for (let t = 0; t < 15; t++) {
+      let rx = seededRandom(cx, cz, 1201 + i + t*10000) * CELL_SIZE;
+      let rz = seededRandom(cx, cz, 1301 + i + t*10000) * CELL_SIZE;
+      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
+      if (canPlace(x, z, occupied, 70*70)) {
+        let variantR = seededRandom(cx, cz, 1400 + i + t*10000);
+        let type = variantR < 0.5 ? "rabbit" : "deer";
+        let aObj = {
+          type: type,
+          x: x,
+          z: z,
+          size: type === "rabbit"
+            ? 0.86 + 0.22 * seededRandom(cx, cz, 1500 + i + t*10000)
+            : 1.45 + 0.65 * seededRandom(cx, cz, 1600 + i + t*10000),
+          colSeed: seededRandom(cx, cz, 1700 + i + t*10000),
+          idlePhase: TWO_PI * seededRandom(cx, cz, 1800 + i + t*10000)
+        };
+        animals.push(aObj);
+        occupied.push({x, z});
+        placed = true;
+        break;
+      }
+    }
+  }
+  // --- Flowers (min dist 25 from anything) ---
+  for (let i = 0; i < FLOWER_DENSITY; i++) {
+    let placed = false;
+    for (let t = 0; t < 15; t++) {
+      let rx = seededRandom(cx, cz, 801 + i + t*10000) * CELL_SIZE;
+      let rz = seededRandom(cx, cz, 902 + i + t*10000) * CELL_SIZE;
+      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
+      if (canPlace(x, z, occupied, 25*25)) {
+        let ftype = seededRandom(cx, cz, 2000 + i + t*10000) < 0.5 ? "sphere" : "torus";
+        let colh = fract(seededRandom(cx, cz, 888 + i + t*10000) + 0.1 * i) * 360;
+        let cols = 60 + 35 * seededRandom(cx, cz, 889 + i + t*10000);
+        let colb = 80 + 20 * seededRandom(cx, cz, 890 + i + t*10000);
+        let fObj = {
+          type: ftype,
+          x: x,
+          z: z,
+          size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + i + t*10000),
+          h: colh, s: cols, b: colb
+        };
+        flowers.push(fObj);
+        occupied.push({x, z});
+        placed = true;
+        break;
+      }
+    }
   }
   return {trees, flowers, animals};
 }
@@ -267,6 +302,16 @@ function generateCell(cx, cz) {
 function squaredDist(x1, z1, x2, z2) {
   let dx = x1 - x2, dz = z1 - z2;
   return dx*dx + dz*dz;
+}
+
+// --- Draw a ground tile for cell (cx, cz) ---
+function drawGroundCell(cx, cz) {
+  push();
+  translate(cx * CELL_SIZE, 0, cz * CELL_SIZE);
+  rotateX(-HALF_PI);
+  fill(120, 38, 55);
+  plane(CELL_SIZE, CELL_SIZE);
+  pop();
 }
 
 // ====== OBJECT DRAW HELPERS (ALL OBJECTS SIT ON GROUND) ======
@@ -430,10 +475,11 @@ function drawFlower(x, z, f) {
 // --- ANIMAL: smooth abstract shapes, no boxes, arty pastel
 function drawAnimal(x, z, a) {
   push();
-  // Idle animation: up-down bob
+  // Correct orientation: baseline on ground, then bob
+  translate(x, 0, z);
   let t = millis() * 0.001 + a.idlePhase;
-  let bobY = sin(t*1.2 + x*0.01 + z*0.01) * 2.7 * a.size;
-  translate(x, bobY, z);
+  let bobY = sin(t * 1.2) * (1.5 * a.size);
+  translate(0, bobY, 0);
 
   let mainHue = fract(a.colSeed + 0.18) * 40 + 18;
   let pastel = color(mainHue, 24, 81);
