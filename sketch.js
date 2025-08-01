@@ -47,7 +47,7 @@ function draw() {
   let lookY = camY + sin(camPitch);
   let lookZ = camZ + sin(camAngle) * cos(camPitch);
 
-  camera(camX, camY, camZ, lookX, lookY, lookZ, 0, 1, 0);
+  camera(camX, camY, camZ, lookX, lookY, lookZ, 0, -1, 0);
 
   // --- Simple atmospheric fog (optional) ---
   push();
