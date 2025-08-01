@@ -16,6 +16,8 @@ let camAngle = 0;                  // Yaw
 let camPitch = 0;                  // Pitch (mouse look)
 let looking = false;               // Pointer lock state
 
+let invertY = false;
+
 const BASE_SPEED = 8;
 const SPRINT_SPEED = 16;
 
@@ -27,6 +29,13 @@ function setup() {
   colorMode(HSB, 360, 100, 100, 1); // For pastel/vivid hues
   angleMode(RADIANS);
   noStroke();
+  const invertBox = document.getElementById('invertY');
+  if (invertBox) {
+    invertY = invertBox.checked;
+    invertBox.addEventListener('change', () => {
+      invertY = invertBox.checked;
+    });
+  }
 }
 
 // ====== WINDOW RESIZE ======
@@ -155,13 +164,15 @@ function mousePressed() {
 function mouseDragged() {
   if (looking) {
     camAngle += movedX * 0.003;
-    camPitch = constrain(camPitch - movedY * 0.003, -PI/2.2, PI/2.2);
+    const factor = invertY ? -1 : 1;
+    camPitch = constrain(camPitch - movedY * 0.003 * factor, -PI/2.2, PI/2.2);
   }
 }
 function mouseMoved() {
   if (looking && (abs(movedX) > 0 || abs(movedY) > 0)) {
     camAngle += movedX * 0.003;
-    camPitch = constrain(camPitch - movedY * 0.003, -PI/2.2, PI/2.2);
+    const factor = invertY ? -1 : 1;
+    camPitch = constrain(camPitch - movedY * 0.003 * factor, -PI/2.2, PI/2.2);
   }
 }
 function keyReleased() {
