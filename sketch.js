@@ -262,7 +262,7 @@ function generateCell(cx, cz) {
       let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
       if (canPlace(x, z, occupied, 70*70)) {
         let variantR = seededRandom(cx, cz, 1400 + i + t*10000);
-        let type = variantR < 0.5 ? "rabbit" : "deer";
+        let type = variantR < 0.15 ? "rabbit" : "deer";
         let aObj = {
           type: type,
           x: x,
