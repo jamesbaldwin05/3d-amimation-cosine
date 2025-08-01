@@ -258,8 +258,8 @@ function generateCell(cx, cz) {
   const animals = [];
 
   // --- Sparse, curvy dirt paths (N/S/E/W) ---
-  // Each direction: with prob ≈ 0.12, store {amp,phase}; else null
-  const PATH_PROB = 0.25;
+  // Each direction: with prob ≈ 0.025, store {amp,phase}; else null
+  const PATH_PROB = 0.025;
   function curvyData(dirSalt) {
     if (seededRandom(cx, cz, dirSalt) < PATH_PROB) {
       return {
