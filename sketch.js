@@ -307,17 +307,20 @@ function drawGroundCell(cx, cz) {
   // Overlay sparse curvy dirt paths as filled ribbons, flush with ground
   if (cell && cell.paths) {
     push();
-    // Draw at ground level; disable depth test so path "repaints" ground with no z-fighting
-    const gl = drawingContext;  // WEBGL rendering context
-    gl.disable(gl.DEPTH_TEST);
+    // Draw at ground level with polygon offset to avoid z-fighting but keep correct depth for trees etc.
+    const gl = drawingContext;
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(-1, -1);
+
     const PATH_W = 186;   // full width (px), thinner than before
+    const PATH_LEN = CELL_SIZE/2 + 200;  // longer reach
     noStroke();
     fill(30, 65, 35);
 
     function ribbon(dir, data) {
       if (!data) return;
       const segs = 18;
-      const len  = CELL_SIZE/2 + 80;
+      const len  = PATH_LEN;
       const half = PATH_W/2;
       // Helper to get centre point for parameter t (0..1)
       const centre = t => {
@@ -347,7 +350,7 @@ function drawGroundCell(cx, cz) {
     ribbon('E', cell.paths.E);
     ribbon('W', cell.paths.W);
 
-    gl.enable(gl.DEPTH_TEST);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
     pop();
   }
   pop();
