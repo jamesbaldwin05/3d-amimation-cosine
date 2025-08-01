@@ -8,8 +8,8 @@ const RENDER_RADIUS = 3;        // How many cells out to generate/draw
 const DRAW_DIST = CELL_SIZE * RENDER_RADIUS * 1.1; // Max draw distance
 const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
 const TREE_DENSITY = 8;         // Trees per cell (approx)
-const FLOWER_DENSITY = 7;       // (now unused, per-cluster)
-const ANIMAL_DENSITY = 3;       // Animals per cell (denser)
+// const FLOWER_DENSITY = 7;    // (unused, per-cluster)
+const ANIMAL_DENSITY = 0;       // Animals per cell (disabled)
 
 let camX = 0, camY = 90, camZ = 0; // Player position
 let camAngle = 0;                  // Yaw
@@ -98,20 +98,7 @@ function draw() {
         drawTree(tx, tz, t);
       }
     }
-    // Flowers
-    for (let f of cell.flowers) {
-      let fx = ox + f.x, fz = oz + f.z;
-      if (squaredDist(fx, fz, camX, camZ) < DRAW_DIST2) {
-        drawFlower(fx, fz, f);
-      }
-    }
-    // Animals
-    for (let a of cell.animals) {
-      let ax = ox + a.x, az = oz + a.z;
-      if (squaredDist(ax, az, camX, camZ) < DRAW_DIST2) {
-        drawAnimal(ax, az, a);
-      }
-    }
+    // Flowers and animals omitted in pure forest mode
   }
 }
 
@@ -225,7 +212,7 @@ function canPlace(x, z, occupied, minSq) {
 }
 
 function generateCell(cx, cz) {
-  let trees = [], flowers = [], animals = [];
+  let trees = [];
   let occupied = [];
   // --- Trees (min dist 50) ---
   let treeTries = 0;
@@ -253,78 +240,9 @@ function generateCell(cx, cz) {
     }
     treeTries++;
   }
-  // --- Animals (min dist 70 from anything) ---
-  for (let i = 0; i < ANIMAL_DENSITY; i++) {
-    let placed = false;
-    for (let t = 0; t < 15; t++) {
-      let rx = seededRandom(cx, cz, 1201 + i + t*10000) * CELL_SIZE;
-      let rz = seededRandom(cx, cz, 1301 + i + t*10000) * CELL_SIZE;
-      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
-      if (canPlace(x, z, occupied, 70*70)) {
-        let variantR = seededRandom(cx, cz, 1400 + i + t*10000);
-        let type = variantR < 0.15 ? "rabbit" : "deer";
-        let aObj = {
-          type: type,
-          x: x,
-          z: z,
-          size: type === "rabbit"
-            ? 0.86 + 0.22 * seededRandom(cx, cz, 1500 + i + t*10000)
-            : 1.45 + 0.65 * seededRandom(cx, cz, 1600 + i + t*10000),
-          colSeed: seededRandom(cx, cz, 1700 + i + t*10000),
-          idlePhase: TWO_PI * seededRandom(cx, cz, 1800 + i + t*10000)
-        };
-        animals.push(aObj);
-        occupied.push({x, z});
-        placed = true;
-        break;
-      }
-    }
-  }
-  // --- Flower patches (clusters) ---
-  let CLUSTERS = 2 + Math.floor(seededRandom(cx, cz, 1337) * 3); // 2-4 clusters
-  for (let c = 0; c < CLUSTERS; c++) {
-    // Random cluster center, must avoid other clusters/objects by 40*40
-    let clusterPlaced = false;
-    let clusterCenterX, clusterCenterZ;
-    for (let tryC = 0; tryC < 15; tryC++) {
-      let rx = seededRandom(cx, cz, 2101 + c + tryC*10000) * CELL_SIZE;
-      let rz = seededRandom(cx, cz, 2201 + c + tryC*10000) * CELL_SIZE;
-      let x = rx - CELL_SIZE / 2, z = rz - CELL_SIZE / 2;
-      if (canPlace(x, z, occupied, 40*40)) {
-        clusterCenterX = x;
-        clusterCenterZ = z;
-        occupied.push({x, z});
-        clusterPlaced = true;
-        break;
-      }
-    }
-    if (!clusterPlaced) continue;
-    // Place flowers in cluster
-    let clusterSize = 6 + Math.floor(seededRandom(cx, cz, 2300 + c) * 7); // 6-12 per cluster
-    let baseHue = fract(seededRandom(cx, cz, 888 + c) + 0.11 * c) * 360;
-    for (let f = 0; f < clusterSize; f++) {
-      let ang = seededRandom(cx, cz, 2400 + c*100 + f) * TWO_PI;
-      let rad = 6 + seededRandom(cx, cz, 2500 + c*100 + f) * 16; // within radius 22
-      let x = clusterCenterX + cos(ang) * rad;
-      let z = clusterCenterZ + sin(ang) * rad;
-      // Only check min 12*12 from other occupied objects (but not within-cluster)
-      if (canPlace(x, z, occupied, 20*20)) {
-        let ftype = seededRandom(cx, cz, 2600 + c*100 + f) < 0.5 ? "sphere" : "torus";
-        let colh = (baseHue + seededRandom(cx, cz, 888 + c*100 + f) * 32) % 360;
-        let cols = 65 + 30 * seededRandom(cx, cz, 889 + c*100 + f);
-        let colb = 80 + 18 * seededRandom(cx, cz, 890 + c*100 + f);
-        let fObj = {
-          type: ftype,
-          x: x,
-          z: z,
-          size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + c*100 + f),
-          h: colh, s: cols, b: colb
-        };
-        flowers.push(fObj);
-        occupied.push({x, z});
-      }
-    }
-  }
+  // No flowers or animals in pure forest mode
+  const flowers = [];
+  const animals = [];
   return {trees, flowers, animals};
 }
 
