@@ -546,51 +546,63 @@ function drawAnimal(x, z, a) {
     pop();
   } else if (a.type === "deer") {
     scale(a.size);
+    // Y-offsets for upright deer
+    const BODY_Y = 6.2;
+    const LEG_Y = -15.7;
+    const NECK_Y = 5;
+    const HEAD_Y = 7.5;
+    const TAIL_Y = -8.2;
+    const ANTLER_Y = 16.3;
+
     // Body
     push();
-    translate(0, 6.2, 0);
+    translate(0, BODY_Y, 0);
     ambientMaterial(mainHue+7, 17, 87);
     sphere(10.2, 18, 14);
     pop();
-    // Neck
+
+    // Neck and head
     push();
-    translate(0, -5, 7.7);
+    translate(0, NECK_Y, 7.7);
     rotateX(-PI/7);
     ambientMaterial(mainHue+12, 12, 97);
     cylinder(2.8, 10, 10, 1, false);
     // Head
-    translate(0, -7.5, 0);
+    translate(0, HEAD_Y, 0);
     sphere(5.7, 12, 10);
     // Ears (cylinders)
     for (let side of [-1, 1]) {
       push();
-      translate(2.2 * side, -3.2, 2.7);
+      translate(2.2 * side, HEAD_Y + 1.5, 2.7);
       rotateZ(side*0.18);
       ambientMaterial(mainHue+20, 11, 98);
       cylinder(0.9, 5, 8, 1, false);
       pop();
     }
     pop();
+
     // Legs (simple, 4 pastel cylinders)
     for (let side of [-1, 1]) {
       for (let f of [1, -1]) {
         push();
-        translate(3.9 * side, 15.7, 5.2 * f);
+        translate(3.9 * side, LEG_Y, 5.2 * f);
         ambientMaterial(mainHue+3, 7, 96);
         cylinder(0.95, 12, 8, 1, false);
         pop();
       }
     }
+
     // Tail
     push();
-    translate(0, 8.9, -8.2);
+    translate(0, TAIL_Y, -8.2);
     ambientMaterial(43, 5, 98);
     sphere(1.8, 6, 5);
     pop();
+
     // Abstract antlers (2 airy torus loops)
     for (let side of [-1,1]) {
       push();
-      translate(2.9*side, -16.3, 5.1);
+      translate(2.9*side, ANTLER_Y, 5.1);
       rotateZ(side * 0.35);
       rotateX(-PI/3.5);
       ambientMaterial(mainHue+21, 20, 99, 0.35);
