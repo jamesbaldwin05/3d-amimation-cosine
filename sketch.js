@@ -1,138 +1,138 @@
 // Procedural 3D Forest Walk – p5.js (WEBGL)
-// All code by Genie, 2025
-// Requirements: p5.js 1.6+, WEBGL mode
+// Genie 2025, updated for endless/procedural grid, arty style, vibrant HSB, and smooth geometry
+// p5.js 1.6+, WEBGL mode
 
-// ====== GLOBALS ======
-let trees = [];
-let flowers = [];
-let animals = [];
-const FOREST_RADIUS = 2000;
-const NUM_TREES = 250;
-const NUM_FLOWERS = 200;
-const NUM_ANIMALS = 30;
+// ====== GLOBALS AND CONSTANTS ======
+const CELL_SIZE = 400;          // Size of grid cell for procedural generation
+const RENDER_RADIUS = 3;        // How many cells out to generate/draw
+const DRAW_DIST = CELL_SIZE * RENDER_RADIUS * 1.1; // Max draw distance
+const DRAW_DIST2 = DRAW_DIST * DRAW_DIST;
+const TREE_DENSITY = 8;         // Trees per cell (approx)
+const FLOWER_DENSITY = 7;       // Flowers per cell
+const ANIMAL_DENSITY = 1;       // Animals per cell
 
-let camX = 0, camY = 90, camZ = 0; // User camera position
-let camAngle = 0; // Yaw (radians, 0 = +X axis)
-let camPitch = 0; // For mouse look
-let looking = false;
-let lastMouseX = 0;
+let camX = 0, camY = 90, camZ = 0; // Player position
+let camAngle = 0;                  // Yaw
+let camPitch = 0;                  // Pitch (mouse look)
+let looking = false;               // Pointer lock state
 
 const BASE_SPEED = 8;
 const SPRINT_SPEED = 16;
 
+let cellMap = new Map();           // "cx,cz" -> {trees, flowers, animals}
+
+// ====== P5 SETUP ======
 function setup() {
   createCanvas(windowWidth, windowHeight, WEBGL);
+  colorMode(HSB, 360, 100, 100, 1); // For pastel/vivid hues
   angleMode(RADIANS);
   noStroke();
-  generateForest();
 }
 
+// ====== WINDOW RESIZE ======
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
-// ====== FOREST GENERATION ======
-function generateForest() {
-  trees = [];
-  flowers = [];
-  animals = [];
-  // --- Trees ---
-  for (let i = 0; i < NUM_TREES; i++) {
-    let theta = random(TWO_PI);
-    let r = sqrt(random(1)) * FOREST_RADIUS; // Uniform density in disk
-    let x = cos(theta) * r;
-    let z = sin(theta) * r;
-    let type = random(["pine", "oak", "birch"]);
-    let tree = {
-      type: type,
-      x: x,
-      z: z,
-      size: random(1.0, 1.4),
-      colour: random(10000), // Seed to pick colour
-    };
-    trees.push(tree);
-  }
-  // --- Flowers ---
-  for (let i = 0; i < NUM_FLOWERS; i++) {
-    let theta = random(TWO_PI);
-    let r = sqrt(random(1)) * FOREST_RADIUS;
-    let x = cos(theta) * r;
-    let z = sin(theta) * r;
-    let ftype = random(["sphere", "torus"]);
-    let f = {
-      type: ftype,
-      x: x,
-      z: z,
-      size: random(0.8, 1.5),
-      colour: [random(360), random(0.6, 1), random(0.7, 1)], // HSB
-    };
-    flowers.push(f);
-  }
-  // --- Animals ---
-  for (let i = 0; i < NUM_ANIMALS; i++) {
-    let theta = random(TWO_PI);
-    let r = sqrt(random(1)) * FOREST_RADIUS;
-    let x = cos(theta) * r;
-    let z = sin(theta) * r;
-    let type = random(["rabbit", "deer"]);
-    let a = {
-      type: type,
-      x: x,
-      z: z,
-      size: (type === "rabbit") ? random(0.8, 1.1) : random(1.5, 2.2),
-      colour: random(10000),
-      idlePhase: random(TWO_PI), // for animation
-    };
-    animals.push(a);
-  }
-}
-
-// ====== DRAW LOOP ======
+// ====== MAIN DRAW LOOP ======
 function draw() {
-  background(135,206,235); // Sky blue
+  background(210, 40, 94); // Pastel sky blue (HSB)
 
-  // --- Lighting ---
-  ambientLight(110, 110, 110);
-  // Directional sunlight (warm, from upper left)
-  directionalLight(255, 220, 180, -0.3, -1.0, -0.2);
+  // --- Lighting: sunset orange, ambient + directional
+  ambientLight(36, 35, 95, 0.30);
+  directionalLight(33, 90, 99, -0.4, -1.1, -0.25); // warm sunset
 
-  // --- Camera logic ---
+  // --- Camera look vector
   let lookX = camX + cos(camAngle) * cos(camPitch);
   let lookY = camY + sin(camPitch);
   let lookZ = camZ + sin(camAngle) * cos(camPitch);
 
   camera(camX, camY, camZ, lookX, lookY, lookZ, 0, 1, 0);
 
-  // --- Ground Plane ---
+  // --- Simple atmospheric fog (optional) ---
   push();
   rotateX(-HALF_PI);
-  ambientMaterial(90, 143, 63); // Rich green
-  specularMaterial(60, 110, 45, 30);
+  fill(210, 40, 95, 0.18); // Fog color, semi-transparent
+  noStroke();
+  plane(CELL_SIZE * (RENDER_RADIUS+2), CELL_SIZE * (RENDER_RADIUS+2));
+  pop();
+
+  // --- Ground plane (large) ---
+  push();
+  rotateX(-HALF_PI);
+  fill(120, 38, 70);
+  ambientMaterial(120, 38, 70);
   plane(4000, 4000);
   pop();
 
-  // --- Draw objects (cull far ones for perf) ---
-  // Trees
-  for (let t of trees) {
-    if (sq(t.x - camX) + sq(t.z - camZ) < 2500 * 2500) {
-      drawTree(t);
+  // --- Movement per frame, synced with draw ---
+  movementStep();
+
+  // --- Procedural generation of visible cells ---
+  let playerCX = Math.floor(camX / CELL_SIZE);
+  let playerCZ = Math.floor(camZ / CELL_SIZE);
+
+  // Ensure cells in radius R exist
+  for (let dx = -RENDER_RADIUS; dx <= RENDER_RADIUS; dx++) {
+    for (let dz = -RENDER_RADIUS; dz <= RENDER_RADIUS; dz++) {
+      ensureCell(playerCX + dx, playerCZ + dz);
     }
   }
-  // Flowers
-  for (let f of flowers) {
-    if (sq(f.x - camX) + sq(f.z - camZ) < 2500 * 2500) {
-      drawFlower(f);
+
+  // --- Draw all objects in visible cells ---
+  for (let [key, cell] of cellMap.entries()) {
+    let [cx, cz] = key.split(',').map(Number);
+    let ox = cx * CELL_SIZE;
+    let oz = cz * CELL_SIZE;
+    // Trees
+    for (let t of cell.trees) {
+      let tx = ox + t.x, tz = oz + t.z;
+      if (squaredDist(tx, tz, camX, camZ) < DRAW_DIST2) {
+        drawTree(tx, tz, t);
+      }
     }
-  }
-  // Animals
-  for (let a of animals) {
-    if (sq(a.x - camX) + sq(a.z - camZ) < 2500 * 2500) {
-      drawAnimal(a);
+    // Flowers
+    for (let f of cell.flowers) {
+      let fx = ox + f.x, fz = oz + f.z;
+      if (squaredDist(fx, fz, camX, camZ) < DRAW_DIST2) {
+        drawFlower(fx, fz, f);
+      }
+    }
+    // Animals
+    for (let a of cell.animals) {
+      let ax = ox + a.x, az = oz + a.z;
+      if (squaredDist(ax, az, camX, camZ) < DRAW_DIST2) {
+        drawAnimal(ax, az, a);
+      }
     }
   }
 }
 
-// ====== CAMERA MOVEMENT / CONTROLS ======
+// ====== MOVEMENT AND CAMERA CONTROLS ======
+function movementStep() {
+  let speed = keyIsDown(SHIFT) ? SPRINT_SPEED : BASE_SPEED;
+  // Forward
+  if (keyIsPressedOrDown("W", UP_ARROW)) {
+    camX += cos(camAngle) * speed;
+    camZ += sin(camAngle) * speed;
+  }
+  // Backward
+  if (keyIsPressedOrDown("S", DOWN_ARROW)) {
+    camX -= cos(camAngle) * speed;
+    camZ -= sin(camAngle) * speed;
+  }
+  // Strafe left
+  if (keyIsPressedOrDown("A", LEFT_ARROW)) {
+    camX += cos(camAngle - HALF_PI) * speed * 0.8;
+    camZ += sin(camAngle - HALF_PI) * speed * 0.8;
+  }
+  // Strafe right
+  if (keyIsPressedOrDown("D", RIGHT_ARROW)) {
+    camX += cos(camAngle + HALF_PI) * speed * 0.8;
+    camZ += sin(camAngle + HALF_PI) * speed * 0.8;
+  }
+}
+
 function keyIsPressedOrDown(...keys) {
   // Helper for multiple keys (keyCode or string)
   for (let k of keys) {
@@ -148,287 +148,377 @@ function keyPressed() {
     requestPointerLock();
   }
 }
-
 function mousePressed() {
-  // For mobile or click, capture mouse
   if (!looking) {
     looking = true;
     requestPointerLock();
   }
 }
-
 function mouseDragged() {
-  // Camera look with mouse drag (only if pointer locked)
   if (looking) {
     camAngle += movedX * 0.003;
     camPitch = constrain(camPitch - movedY * 0.003, -PI/2.2, PI/2.2);
   }
 }
-
 function mouseMoved() {
   if (looking && (abs(movedX) > 0 || abs(movedY) > 0)) {
     camAngle += movedX * 0.003;
     camPitch = constrain(camPitch - movedY * 0.003, -PI/2.2, PI/2.2);
   }
 }
-
 function keyReleased() {
   // Escape releases mouse
-  if (keyCode === 27) { // ESC
+  if (keyCode === 27) {
     looking = false;
     exitPointerLock();
   }
 }
-
 function exitPointerLock() {
   if (document.exitPointerLock) document.exitPointerLock();
 }
-
 function requestPointerLock() {
   let c = document.querySelector("canvas");
   if (c && c.requestPointerLock) c.requestPointerLock();
 }
 
-// --- Actual movement logic in draw (so multiple keys work) ---
-function movementStep() {
-  let speed = keyIsDown(SHIFT) ? SPRINT_SPEED : BASE_SPEED;
-  let moved = false;
-  // Forward
-  if (keyIsPressedOrDown("W", UP_ARROW)) {
-    camX += cos(camAngle) * speed;
-    camZ += sin(camAngle) * speed;
-    moved = true;
-  }
-  // Backward
-  if (keyIsPressedOrDown("S", DOWN_ARROW)) {
-    camX -= cos(camAngle) * speed;
-    camZ -= sin(camAngle) * speed;
-    moved = true;
-  }
-  // Strafe left
-  if (keyIsPressedOrDown("A", LEFT_ARROW)) {
-    camX += cos(camAngle - HALF_PI) * speed * 0.76;
-    camZ += sin(camAngle - HALF_PI) * speed * 0.76;
-    moved = true;
-  }
-  // Strafe right
-  if (keyIsPressedOrDown("D", RIGHT_ARROW)) {
-    camX += cos(camAngle + HALF_PI) * speed * 0.76;
-    camZ += sin(camAngle + HALF_PI) * speed * 0.76;
-    moved = true;
-  }
-  // Clamp to bounds
-  let maxDist = FOREST_RADIUS * 0.95;
-  let dist = sqrt(camX*camX + camZ*camZ);
-  if (dist > maxDist) {
-    let factor = maxDist / dist;
-    camX *= factor;
-    camZ *= factor;
-  }
+// ====== CELL MANAGEMENT AND SEEDED RANDOM ======
+
+// Returns a deterministic float in [0,1) for given ints and salt (Mulberry32 hash)
+function seededRandom(ix, iz, salt=0) {
+  // Simple, good PRNG for deterministic, grid-based randomness
+  let h = 1779033703 ^ ix;
+  h = Math.imul(h ^ 0x85ebca6b, 0xc2b2ae35);
+  h = Math.imul(h ^ 0x27d4eb2f ^ iz, 0xc2b2ae35);
+  h = Math.imul(h ^ 0x165667b1 ^ salt, 0xc2b2ae35);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return (h / 4294967296);
 }
-setInterval(movementStep, 1000/60); // Maintain 60fps movement, decoupled from draw()
+// Frac part
+function fract(x) { return x - Math.floor(x); }
 
-// ====== DRAW HELPERS ======
+function cellKey(cx, cz) { return `${cx},${cz}`; }
 
-// --- TREE ---
-function drawTree(t) {
+// Ensure a cell is generated and stored in cellMap
+function ensureCell(cx, cz) {
+  let key = cellKey(cx, cz);
+  if (cellMap.has(key)) return;
+  cellMap.set(key, generateCell(cx, cz));
+}
+
+// Generate cell objects deterministically
+function generateCell(cx, cz) {
+  let trees = [], flowers = [], animals = [];
+  // --- Trees ---
+  for (let i = 0; i < TREE_DENSITY; i++) {
+    // Spread evenly, then jitter (deterministically)
+    let rx = seededRandom(cx, cz, 101 + i) * CELL_SIZE;
+    let rz = seededRandom(cx, cz, 302 + i) * CELL_SIZE;
+    let variantR = seededRandom(cx, cz, 1000 + i);
+    let type = variantR < 0.38 ? "pine" : (variantR < 0.7 ? "oak" : "birch");
+    let t = {
+      type: type,
+      x: rx - CELL_SIZE / 2,
+      z: rz - CELL_SIZE / 2,
+      size: 1.0 + seededRandom(cx, cz, 4000 + i) * 0.85,
+      colSeed: seededRandom(cx, cz, 7000 + i)
+    };
+    trees.push(t);
+  }
+  // --- Flowers ---
+  for (let i = 0; i < FLOWER_DENSITY; i++) {
+    let rx = seededRandom(cx, cz, 801 + i) * CELL_SIZE;
+    let rz = seededRandom(cx, cz, 902 + i) * CELL_SIZE;
+    let ftype = seededRandom(cx, cz, 2000 + i) < 0.5 ? "sphere" : "torus";
+    let colh = fract(seededRandom(cx, cz, 888 + i) + 0.1 * i) * 360;
+    let cols = 60 + 35 * seededRandom(cx, cz, 889 + i);
+    let colb = 80 + 20 * seededRandom(cx, cz, 890 + i);
+    let f = {
+      type: ftype,
+      x: rx - CELL_SIZE / 2,
+      z: rz - CELL_SIZE / 2,
+      size: 0.85 + 0.8 * seededRandom(cx, cz, 8010 + i),
+      h: colh, s: cols, b: colb
+    };
+    flowers.push(f);
+  }
+  // --- Animals ---
+  for (let i = 0; i < ANIMAL_DENSITY; i++) {
+    let rx = seededRandom(cx, cz, 1201 + i) * CELL_SIZE;
+    let rz = seededRandom(cx, cz, 1301 + i) * CELL_SIZE;
+    let variantR = seededRandom(cx, cz, 1400 + i);
+    let type = variantR < 0.5 ? "rabbit" : "deer";
+    let a = {
+      type: type,
+      x: rx - CELL_SIZE / 2,
+      z: rz - CELL_SIZE / 2,
+      size: type === "rabbit"
+        ? 0.86 + 0.22 * seededRandom(cx, cz, 1500 + i)
+        : 1.45 + 0.65 * seededRandom(cx, cz, 1600 + i),
+      colSeed: seededRandom(cx, cz, 1700 + i),
+      idlePhase: TWO_PI * seededRandom(cx, cz, 1800 + i)
+    };
+    animals.push(a);
+  }
+  return {trees, flowers, animals};
+}
+
+// Squared distance helper
+function squaredDist(x1, z1, x2, z2) {
+  let dx = x1 - x2, dz = z1 - z2;
+  return dx*dx + dz*dz;
+}
+
+// ====== OBJECT DRAW HELPERS (ALL OBJECTS SIT ON GROUND) ======
+
+// --- TREE: smooth, colourful, arty foliage, all variants
+function drawTree(x, z, t) {
   push();
-  translate(t.x, 0, t.z);
+  translate(x, 0, z);
 
-  let variant = t.type;
+  // Pastel trunk color by colSeed
   let trunkH, trunkR, foliageY;
+  let baseHue = fract(t.colSeed + 0.13) * 50 + 20;
+  let trunkColor = color(baseHue, 28, 68);
 
-  // Pick bark and foliage colours
-  if (variant === "pine") {
-    // Tall, thin brown trunk
-    trunkH = 44 * t.size;
-    trunkR = 3.9 * t.size;
-    ambientMaterial(90, 60, 38);
-    cylinder(trunkR, trunkH);
-    // Three stacked cones, dark green
-    let coneColors = [
-      [30, random(90,120), 45],
-      [38, random(110,150), 60],
-      [46, random(130,170), 70]
-    ];
-    let topY = -trunkH/2 - 24*t.size;
-    for (let i=0; i<3; i++) {
-      push();
-      translate(0, topY + i*16*t.size, 0);
-      ambientMaterial(35, random(80,130), 38 + i*10);
-      cone(18 - i*4, 32 - i*8, 16, 2, false);
-      pop();
-    }
-  } else if (variant === "oak") {
-    // Thicker trunk, brown
-    trunkH = 32 * t.size;
-    trunkR = 7.9 * t.size;
-    ambientMaterial(104, 77, 33);
-    cylinder(trunkR, trunkH);
-    // Large green sphere foliage
+  if (t.type === "pine") {
+    trunkH = 45 * t.size;
+    trunkR = 4.1 * t.size;
+    // Place trunk so bottom is at y=0:
     push();
-    translate(0, -trunkH/2 - 23*t.size, 0);
-    ambientMaterial(50, random(130,170), 60);
-    sphere(28 * t.size, 12, 12);
+    translate(0, trunkH/2, 0);
+    ambientMaterial(trunkColor);
+    cylinder(trunkR, trunkH, 12, 1, false);
     pop();
-  } else if (variant === "birch") {
-    // White trunk with stripes
-    trunkH = 38 * t.size;
-    trunkR = 5.2 * t.size;
-    fill(230, 230, 220);
-    ambientMaterial(240, 236, 226);
-    cylinder(trunkR, trunkH);
-    // Add black stripes
-    for (let i=0;i<5;i++) {
+    // Foliage: 3-4 stacked cones, vibrant green/blue
+    let baseY = trunkH + 12*t.size;
+    let mainHue = fract(t.colSeed + 0.27) * 60 + 100;
+    for (let i = 0; i < 3; i++) {
+      let y = baseY - i*22*t.size;
+      let rad = 14 - i*3;
+      let h = 33 - i*8;
+      let col = color(mainHue + 8*i, 55 + 15*i, 78 - 8*i);
       push();
-      let y = -trunkH/2 + trunkH * (i+0.5)/6;
-      translate(0, y, trunkR+0.25);
-      rotateX(HALF_PI);
-      fill(40,40,40);
-      ellipse(0,0, trunkR*1.7, 1.4);
+      translate(0, y, 0);
+      ambientMaterial(col);
+      cone(rad * t.size, h * t.size, 18, 2, false);
       pop();
     }
-    // Foliage sphere, lighter green
+    // Arty: pastel torus "rings"
     push();
-    translate(0, -trunkH/2 - 16*t.size, 0);
-    ambientMaterial(180, 210, 140);
-    sphere(20 * t.size, 10, 10);
+    translate(0, baseY + 9*t.size, 0);
+    rotateX(HALF_PI);
+    ambientMaterial(mainHue+32, 40, 96, 0.19);
+    torus(13*t.size, 2.8*t.size, 24, 8);
+    pop();
+  } else if (t.type === "oak") {
+    trunkH = 36 * t.size;
+    trunkR = 7.1 * t.size;
+    push();
+    translate(0, trunkH/2, 0);
+    ambientMaterial(trunkColor);
+    cylinder(trunkR, trunkH, 14, 1, false);
+    pop();
+    // Foliage: 2-3 layered pastel spheres
+    let mainHue = fract(t.colSeed + 0.41) * 60 + 90;
+    let folY = trunkH + 20*t.size;
+    for (let i = 0; i < 2; i++) {
+      let y = folY - i*7*t.size;
+      let rad = 22 + 7*i;
+      let col = color(mainHue + 14*i, 55 + 22*i, 88 - 8*i);
+      push();
+      translate(0, y, 0);
+      ambientMaterial(col);
+      sphere(rad * t.size, 18, 14);
+      pop();
+    }
+    // Arty: torus for halo
+    push();
+    translate(0, folY + 8*t.size, 0);
+    rotateX(HALF_PI);
+    ambientMaterial(mainHue+22, 30, 97, 0.09);
+    torus(17*t.size, 2.1*t.size, 22, 8);
+    pop();
+  } else if (t.type === "birch") {
+    trunkH = 39 * t.size;
+    trunkR = 5.0 * t.size;
+    // Trunk: white with black stripes, pastel
+    let birchHue = (baseHue + 7) % 360;
+    push();
+    translate(0, trunkH/2, 0);
+    ambientMaterial(0, 0, 98);
+    cylinder(trunkR, trunkH, 14, 1, false);
+    // Black stripes
+    for (let i=0; i<5; i++) {
+      let y = -trunkH/2 + trunkH * (i+0.5)/6;
+      push();
+      translate(0, y, trunkR+0.2);
+      rotateX(HALF_PI);
+      fill(0, 0, 18);
+      ellipse(0,0, trunkR*1.7, 1.1);
+      pop();
+    }
+    pop();
+    // Foliage: pastel green spheres + torus
+    let mainHue = fract(t.colSeed + 0.19) * 30 + 85;
+    let folY = trunkH + 12*t.size;
+    for (let i = 0; i < 2; i++) {
+      let y = folY - i*7*t.size;
+      let rad = 15 + 4*i;
+      let col = color(mainHue + 9*i, 40 + 15*i, 98 - 12*i);
+      push();
+      translate(0, y, 0);
+      ambientMaterial(col);
+      sphere(rad * t.size, 16, 12);
+      pop();
+    }
+    push();
+    translate(0, folY + 6*t.size, 0);
+    rotateX(HALF_PI);
+    ambientMaterial(mainHue+10, 27, 85, 0.11);
+    torus(10*t.size, 1.5*t.size, 16, 6);
     pop();
   }
   pop();
 }
 
-// --- FLOWER ---
-function drawFlower(f) {
+// --- FLOWER: bold, smooth, pastel stem and vivid bloom
+function drawFlower(x, z, f) {
   push();
-  translate(f.x, 0, f.z);
-
-  // Stem
-  ambientMaterial(55, 140, 60);
-  cylinder(1.5 * f.size, 8 * f.size);
-
-  // Bloom (sphere or torus)
-  let [h, s, b] = f.colour;
-  colorMode(HSB);
-  let flowerCol = color(h, s*100, b*100);
-  colorMode(RGB);
-  translate(0, -6 * f.size, 0);
-  ambientMaterial(flowerCol);
+  translate(x, 0, z);
+  // Stem: pastel green, bottom at y=0
+  let stemH = 8 * f.size;
+  let stemR = 1.2 * f.size;
+  push();
+  translate(0, stemH/2, 0);
+  ambientMaterial(124, 28, 73, 0.77);
+  cylinder(stemR, stemH, 10, 1, false);
+  pop();
+  // Bloom: vivid, arty shape
+  let bloomY = stemH + 2.5*f.size;
+  let bloomCol = color(f.h, f.s, f.b);
   if (f.type === "sphere") {
-    sphere(3.8 * f.size, 8, 8);
-    // Add stamen (tiny yellow)
     push();
-    translate(0, -2.8 * f.size, 0);
-    ambientMaterial(255, 215, 60);
-    sphere(1.2 * f.size, 5, 5);
+    translate(0, bloomY, 0);
+    ambientMaterial(bloomCol);
+    sphere(4.1 * f.size, 12, 10);
+    // Stamen: tiny pastel yellow sphere
+    push();
+    translate(0, -2.2*f.size, 0);
+    ambientMaterial(51, 38, 99);
+    sphere(1.2*f.size, 7, 5);
+    pop();
     pop();
   } else {
+    push();
+    translate(0, bloomY, 0);
     rotateX(HALF_PI);
-    torus(2.2 * f.size, 1.2 * f.size, 10, 8);
+    ambientMaterial(bloomCol);
+    torus(2.7*f.size, 1.3*f.size, 14, 10);
     // Center dot
     push();
     rotateX(HALF_PI);
-    translate(0, 0, 1.2 * f.size);
-    ambientMaterial(255, 220, 110);
-    sphere(1.0 * f.size, 5, 5);
+    translate(0, 0, 1.35*f.size);
+    ambientMaterial(51, 38, 99);
+    sphere(1.3*f.size, 7, 5);
+    pop();
     pop();
   }
   pop();
 }
 
-// --- ANIMAL ---
-function drawAnimal(a) {
+// --- ANIMAL: smooth abstract shapes, no boxes, arty pastel
+function drawAnimal(x, z, a) {
   push();
-  translate(a.x, 0, a.z);
-
   // Idle animation: up-down bob
   let t = millis() * 0.001 + a.idlePhase;
-  let bobY = sin(t*1.2 + a.x*0.01 + a.z*0.01) * 3.5 * a.size;
-  translate(0, bobY, 0);
+  let bobY = sin(t*1.2 + x*0.01 + z*0.01) * 2.7 * a.size;
+  translate(x, bobY, z);
 
+  let mainHue = fract(a.colSeed + 0.18) * 40 + 18;
+  let pastel = color(mainHue, 24, 81);
   if (a.type === "rabbit") {
-    // Body
-    ambientMaterial(190, 180, 160);
     scale(a.size);
+    // Body
     push();
-    scale(1.1, 0.97, 1.5);
-    sphere(7, 10, 10);
+    translate(0, 7, 0);
+    ambientMaterial(pastel);
+    sphere(7.8, 16, 14);
     pop();
     // Head
     push();
-    translate(0, -7, 5.2);
-    scale(0.79, 0.88, 1.0);
-    sphere(4.5, 8, 8);
+    translate(0, -3.8, 6.3);
+    ambientMaterial(mainHue, 14, 98);
+    sphere(4.2, 12, 10);
     pop();
-    // Ears
+    // Ears (cylinders)
     for (let side of [-1, 1]) {
       push();
-      translate(2.2 * side, -13, 7.5);
-      rotateZ(side*0.13);
-      scale(0.41, 1.38, 0.41);
-      box(3.1, 12.5, 2.0);
+      translate(2.1*side, -10.5, 7.5);
+      rotateZ(side*0.10);
+      rotateX(-PI/16);
+      ambientMaterial(mainHue+13, 32, 99);
+      cylinder(1.35, 8, 8, 1, false);
       pop();
     }
     // Tail
     push();
-    translate(0, 1, -8.5);
-    ambientMaterial(235,235,240);
-    sphere(2.2, 6, 6);
+    translate(0, 8.6, -6.2);
+    ambientMaterial(40, 6, 99);
+    sphere(2.3, 7, 5);
     pop();
   } else if (a.type === "deer") {
-    // Body
-    ambientMaterial(150, 115, 60);
     scale(a.size);
+    // Body
     push();
-    scale(2.4, 1.1, 1.0);
-    box(7.7, 5.6, 14);
+    translate(0, 6.2, 0);
+    ambientMaterial(mainHue+7, 17, 87);
+    sphere(10.2, 18, 14);
     pop();
-    // Legs
+    // Neck
+    push();
+    translate(0, -5, 7.7);
+    rotateX(-PI/7);
+    ambientMaterial(mainHue+12, 12, 97);
+    cylinder(2.8, 10, 10, 1, false);
+    // Head
+    translate(0, -7.5, 0);
+    sphere(5.7, 12, 10);
+    // Ears (cylinders)
+    for (let side of [-1, 1]) {
+      push();
+      translate(2.2 * side, -3.2, 2.7);
+      rotateZ(side*0.18);
+      ambientMaterial(mainHue+20, 11, 98);
+      cylinder(0.9, 5, 8, 1, false);
+      pop();
+    }
+    pop();
+    // Legs (simple, 4 pastel cylinders)
     for (let side of [-1, 1]) {
       for (let f of [1, -1]) {
         push();
-        translate(3.7 * side, 7.5, 5.2 * f);
-        scale(0.32, 1.4, 0.32);
-        box(4, 12, 4);
+        translate(3.9 * side, 15.7, 5.2 * f);
+        ambientMaterial(mainHue+3, 7, 96);
+        cylinder(0.95, 12, 8, 1, false);
         pop();
       }
     }
-    // Neck
-    push();
-    translate(0, -5, 8);
-    rotateX(-PI/8);
-    scale(0.55, 1.3, 0.55);
-    box(4, 9, 4);
-    // Head
-    translate(0, -5.5, 0);
-    scale(1.35, 0.9, 1.1);
-    box(5.5, 4.5, 6.5);
-    // Ears
-    for (let side of [-1, 1]) {
-      push();
-      translate(2.3 * side, -1.8, 2.3);
-      rotateZ(side*0.20);
-      scale(0.25, 0.7, 0.35);
-      box(2, 6, 2);
-      pop();
-    }
-    // Antlers (simple lines)
-    stroke(80, 70, 45);
-    strokeWeight(0.5);
-    for (let side of [-1,1]) {
-      push();
-      translate(2.0 * side, -3, 2.5);
-      line(0,0,0,   side*3, -7, 2);
-      pop();
-    }
-    noStroke();
-    pop();
     // Tail
     push();
-    translate(0, 1.1, -7.8);
-    ambientMaterial(222, 210, 190);
-    sphere(1.7, 5, 5);
+    translate(0, 8.9, -8.2);
+    ambientMaterial(43, 5, 98);
+    sphere(1.8, 6, 5);
     pop();
+    // Abstract antlers (2 airy torus loops)
+    for (let side of [-1,1]) {
+      push();
+      translate(2.9*side, -16.3, 5.1);
+      rotateZ(side * 0.35);
+      rotateX(-PI/3.5);
+      ambientMaterial(mainHue+21, 20, 99, 0.35);
+      torus(2.7, 0.36, 10, 4);
+      pop();
+    }
   }
   pop();
 }
